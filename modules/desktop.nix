@@ -1,6 +1,10 @@
-{ config, lib, pkgs, inputs, ... }:
-
 {
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}: {
   # Hyprland compositor
   programs.hyprland = {
     enable = true;
@@ -16,6 +20,12 @@
     wayland.enable = true;
   };
 
+  # SDDM
+  programs.silentSDDM = {
+    enable = true;
+    theme = "silvia";
+  };
+
   # Hardware
   hardware.graphics.enable = true;
   hardware.bluetooth.enable = true;
@@ -23,6 +33,6 @@
   # XDG desktop portal
   xdg.portal = {
     enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    extraPortals = [pkgs.xdg-desktop-portal-gtk];
   };
 }

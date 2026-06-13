@@ -24,7 +24,7 @@ Item {
             rootScope.dismissAll();
         }
     }
-    
+
     function closeMenu(): void {
         menuOpen = false;
     }
@@ -41,7 +41,7 @@ Item {
     Rectangle {
         id: triggerButton
         anchors.fill: parent
-        radius: 0 
+        radius: 0
         color: "transparent"
 
         Text {
@@ -72,17 +72,22 @@ Item {
 
     PanelWindow {
         id: pickerWindow
-        
+
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "quickshell-wallpaper-picker"
         WlrLayershell.keyboardFocus: WlrLayershell.OnDemand
-        
-        anchors { left: true; right: true; top: true; bottom: true }
-        
+
+        anchors {
+            left: true
+            right: true
+            top: true
+            bottom: true
+        }
+
         visible: wallpaperModuleRoot.menuOpen
-        
+
         color: "transparent"
-        
+
         // Background click to close
         MouseArea {
             anchors.fill: parent
@@ -94,9 +99,9 @@ Item {
             anchors.centerIn: parent
             width: parent.width
             height: 650
-            
+
             source: wallpaperModuleRoot.menuOpen ? Qt.resolvedUrl("WallpaperPicker.qml").toString() : ""
-            
+
             onLoaded: {
                 if (item) {
                     item.forceActiveFocus();
@@ -111,4 +116,3 @@ Item {
         onActivated: wallpaperModuleRoot.toggleMenu()
     }
 }
-

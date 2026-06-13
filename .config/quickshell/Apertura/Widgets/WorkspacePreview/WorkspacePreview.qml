@@ -25,7 +25,8 @@ Item {
     implicitHeight: active ? (manualIsVertical ? 700 : 300) : 0
 
     onContainsMouseGlobalChanged: {
-        if (!active) return;
+        if (!active)
+            return;
         if (containsMouseGlobal) {
             globalWorkspacePreview.cancelDismiss();
         } else {
@@ -37,7 +38,7 @@ Item {
         if (targetWorkspace !== -1) {
             previewRoot.active = false;
             previewRoot.renderReady = false;
-            
+
             blankingTimer.restart();
             updateGeometryMap();
             retriggerTimer.restart();
@@ -58,16 +59,16 @@ Item {
 
     Timer {
         id: blankingTimer
-        interval: 250 
+        interval: 250
         running: false
         repeat: false
         onTriggered: {
             previewRoot.liveClientJson = previewRoot.stagedClientJson;
             previewRoot.delayedWorkspace = previewRoot.targetWorkspace;
-            
+
             previewRoot.manualIsVertical = viewportFrame.calculatedBounds.isVertical;
-            
-            Qt.callLater(function() {
+
+            Qt.callLater(function () {
                 previewRoot.renderReady = true;
             });
         }
@@ -81,7 +82,8 @@ Item {
         property int ticks: 0
 
         onRunningChanged: {
-            if (running) ticks = 0;
+            if (running)
+                ticks = 0;
         }
 
         onTriggered: {
@@ -98,11 +100,12 @@ Item {
         interval: 50
         running: false
         repeat: false
-        onTriggered: previewRoot.active = true;
+        onTriggered: previewRoot.active = true
     }
 
     function updateGeometryMap() {
-        if (targetWorkspace === -1) return;
+        if (targetWorkspace === -1)
+            return;
         clientQueryProcess.running = true;
     }
 
@@ -128,15 +131,17 @@ Item {
         running: false
         stdout: StdioCollector {
             onTextChanged: {
-                if (!previewRoot.active) return;
+                if (!previewRoot.active)
+                    return;
                 let cleanText = text.trim();
-                if (!cleanText || cleanText === "[]") return;
+                if (!cleanText || cleanText === "[]")
+                    return;
                 try {
                     previewRoot.stagedClientJson = JSON.parse(cleanText);
                     if (previewRoot.renderReady) {
                         previewRoot.liveClientJson = previewRoot.stagedClientJson;
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
         }
     }
@@ -147,16 +152,23 @@ Item {
     }
 
     function getCleanIconName(className) {
-        if (!className) return "application-x-executable";
+        if (!className)
+            return "application-x-executable";
         let lowerClass = className.toLowerCase().trim();
-        
-        if (lowerClass.includes("chrome")) return "google-chrome";
-        if (lowerClass.includes("kitty")) return "kitty";
-        if (lowerClass.includes("terminal")) return "utilities-terminal";
-        if (lowerClass.includes("codium")) return "vscodium";
-        if (lowerClass.includes("code")) return "vscode";
-        if (lowerClass.includes("signal")) return "signal-desktop";
-        
+
+        if (lowerClass.includes("chrome"))
+            return "google-chrome";
+        if (lowerClass.includes("kitty"))
+            return "kitty";
+        if (lowerClass.includes("terminal"))
+            return "utilities-terminal";
+        if (lowerClass.includes("codium"))
+            return "vscodium";
+        if (lowerClass.includes("code"))
+            return "vscode";
+        if (lowerClass.includes("signal"))
+            return "signal-desktop";
+
         return lowerClass;
     }
 
@@ -173,7 +185,7 @@ Item {
         font.family: "Rubik"
         font.pixelSize: 14
         font.weight: Font.Bold
-        color: previewRoot.theme ? previewRoot.theme.theme_fg : "#89b4fa" 
+        color: previewRoot.theme ? previewRoot.theme.theme_fg : "#89b4fa"
         x: 16
         y: 14
         visible: previewRoot.renderReady
@@ -184,15 +196,15 @@ Item {
         y: 14
         height: titleLabel.implicitHeight
         spacing: 8
-        
+
         Repeater {
             model: previewRoot.renderReady ? viewportFrame.workspaceWindows : []
             delegate: Image {
                 property string appClass: modelData.class || ""
-                
+
                 visible: appClass !== "" && modelData.mapped
                 source: Quickshell.iconPath(getCleanIconName(appClass))
-                
+
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 fillMode: Image.PreserveAspectFit
@@ -232,36 +244,49 @@ Item {
 
         property var calculatedBounds: {
             if (!workspaceWindows || workspaceWindows.length === 0) {
-                return { "w": 1920, "h": 1080, "isVertical": false, "originX": 0, "originY": 0 };
+                return {
+                    "w": 1920,
+                    "h": 1080,
+                    "isVertical": false,
+                    "originX": 0,
+                    "originY": 0
+                };
             }
-            
+
             let minX = Infinity, minY = Infinity;
             let maxX = -Infinity, maxY = -Infinity;
-            
+
             for (let i = 0; i < workspaceWindows.length; i++) {
                 let win = workspaceWindows[i];
-                if (!win.at || !win.size) continue;
-                
-                if (win.at[0] < minX) minX = win.at[0];
-                if (win.at[1] < minY) minY = win.at[1];
-                
+                if (!win.at || !win.size)
+                    continue;
+
+                if (win.at[0] < minX)
+                    minX = win.at[0];
+                if (win.at[1] < minY)
+                    minY = win.at[1];
+
                 let rightEdge = win.at[0] + win.size[0];
                 let bottomEdge = win.at[1] + win.size[1];
-                
-                if (rightEdge > maxX) maxX = rightEdge;
-                if (bottomEdge > maxY) maxY = bottomEdge;
+
+                if (rightEdge > maxX)
+                    maxX = rightEdge;
+                if (bottomEdge > maxY)
+                    maxY = bottomEdge;
             }
-            
+
             let spanX = maxX - minX;
             let spanY = maxY - minY;
             let verticalDetected = spanY > spanX;
-            
+
             let normW = verticalDetected ? 1080 : 1920;
             let normH = verticalDetected ? 1920 : 1080;
-            
-            if (spanX > 0 && Math.abs(spanX - normW) > 100) normW = spanX;
-            if (spanY > 0 && Math.abs(spanY - normH) > 100) normH = spanY;
-            
+
+            if (spanX > 0 && Math.abs(spanX - normW) > 100)
+                normW = spanX;
+            if (spanY > 0 && Math.abs(spanY - normH) > 100)
+                normH = spanY;
+
             return {
                 "w": normW,
                 "h": normH,
@@ -303,7 +328,7 @@ Item {
 
                 x: ((winX - viewportFrame.monitorX) * viewportFrame.scaleX) + 2
                 y: ((winY - viewportFrame.monitorY) * viewportFrame.scaleY) + 2
-                
+
                 width: Math.max(4, (winW * viewportFrame.scaleX) - 4)
                 height: Math.max(4, (winH * viewportFrame.scaleY) - 4)
 
@@ -315,23 +340,28 @@ Item {
                 clip: true
 
                 property var wlToplevel: {
-                    if (!modelData || !modelData.address) return null;
-                    
+                    if (!modelData || !modelData.address)
+                        return null;
+
                     let tracker = clientQueryProcess.running;
                     let targetAddr = modelData.address.trim().toLowerCase();
 
                     let match = Hyprland.toplevels.values.find(t => {
-                        if (!t.lastIpcObject || !t.lastIpcObject.address) return false;
+                        if (!t.lastIpcObject || !t.lastIpcObject.address)
+                            return false;
                         return t.lastIpcObject.address.trim().toLowerCase() === targetAddr;
                     });
-                    if (match && match.wayland) return match.wayland;
-                    
+                    if (match && match.wayland)
+                        return match.wayland;
+
                     if (viewportFrame.activeWsObj) {
                         let localMatch = viewportFrame.activeWsObj.toplevels.values.find(t => {
-                            if (!t.lastIpcObject || !t.lastIpcObject.address) return false;
+                            if (!t.lastIpcObject || !t.lastIpcObject.address)
+                                return false;
                             return t.lastIpcObject.address.trim().toLowerCase() === targetAddr;
                         });
-                        if (localMatch && localMatch.wayland) return localMatch.wayland;
+                        if (localMatch && localMatch.wayland)
+                            return localMatch.wayland;
                     }
                     return null;
                 }
@@ -340,9 +370,13 @@ Item {
                     anchors.fill: parent
                     active: windowDelegate.wlToplevel !== null
                     asynchronous: true
-                    
+
                     opacity: status === Loader.Ready ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 150
+                        }
+                    }
 
                     sourceComponent: ScreencopyView {
                         width: parent.width
@@ -361,7 +395,7 @@ Item {
                     height: Math.min(14, parent.height * 0.25)
                     color: "#cc11111b"
                     visible: parent.height > 20 && parent.width > 35
-                    z: 10 
+                    z: 10
 
                     Text {
                         text: (modelData.title && modelData.title.trim() !== "" && modelData.title !== "~") ? modelData.title : (modelData.class || "")
@@ -385,13 +419,13 @@ Item {
         cursorShape: Qt.PointingHandCursor
         z: 20
         hoverEnabled: true
-        
+
         propagateComposedEvents: true
-        
-        onPressed: (mouse) => mouse.accepted = true
-        onReleased: (mouse) => mouse.accepted = true
-        
-        onPositionChanged: (mouse) => mouse.accepted = false
+
+        onPressed: mouse => mouse.accepted = true
+        onReleased: mouse => mouse.accepted = true
+
+        onPositionChanged: mouse => mouse.accepted = false
 
         onClicked: {
             if (previewRoot.targetWorkspace !== -1) {

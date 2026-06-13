@@ -1,6 +1,9 @@
-{ config, lib, pkgs, ... }:
-
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}: {
   environment.systemPackages = with pkgs; [
     # ── Core System Tools ────────────────────────────────────────────────
     wget
@@ -13,6 +16,7 @@
     python3
     fish
     starship
+    ripgrep
 
     # ── Desktop & Apps ───────────────────────────────────────────────────
     kdePackages.dolphin
@@ -40,9 +44,9 @@
     vue-language-server
     lua-language-server
     gopls
-    gotools              # provides goimports (go-tools only has staticcheck etc)
+    gotools # provides goimports (go-tools only has staticcheck etc)
     golines
-    go-tools             # staticcheck, structlayout etc
+    go-tools # staticcheck, structlayout etc
     sqls
     lazygit
     gcc
@@ -57,13 +61,13 @@
     nixd
     alejandra
     kdePackages.qtdeclarative
-    prettier             # JS/TS/CSS/HTML formatter
-    ktfmt                # Kotlin formatter
-    google-java-format   # Java formatter
-    rustfmt              # Rust formatter
+    prettier # JS/TS/CSS/HTML formatter
+    ktfmt # Kotlin formatter
+    google-java-format # Java formatter
+    rustfmt # Rust formatter
 
     # ── Editors ──────────────────────────────────────────────────────────
-    zed-editor-fhs   # FHS-wrapped: extensions work on NixOS out of the box
+    zed-editor-fhs # FHS-wrapped: extensions work on NixOS out of the box
 
     # ── Apertura / Aesthetics ────────────────────────────────────────────
     grim
@@ -76,11 +80,11 @@
     # ── Quickshell (wrapped with runtime deps) ───────────────────────────
     (symlinkJoin {
       name = "quickshell-wrapped";
-      paths = [ quickshell ];
-      nativeBuildInputs = [ makeWrapper ];
+      paths = [quickshell];
+      nativeBuildInputs = [makeWrapper];
       postBuild = ''
         wrapProgram $out/bin/qs \
-          --prefix PATH : "${lib.makeBinPath [ (python3.withPackages (ps: [ ps.pyxdg ])) bluez networkmanager wireplumber matugen awww cava ]}" \
+          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugen awww cava]}" \
           --prefix QML2_IMPORT_PATH : "${kdePackages.qt5compat}/lib/qt-6/qml"
       '';
     })

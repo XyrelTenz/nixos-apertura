@@ -11,12 +11,8 @@ Item {
     implicitWidth: 32
     implicitHeight: 32
 
-    property real speakerVol: 0.0
+    readonly property real currentVol: globalVolumeSlider.value ?? 0.0
     property bool isMuted: false
-    property real micVol: 0.0
-    property bool micMuted: false
-
-    property string activeTab: "speaker" // "speaker", "mic", "devices"
     property bool menuOpen: false
 
     Binding {
@@ -34,9 +30,6 @@ Item {
                 syncVolumeQuery.running = false;
                 syncVolumeQuery.running = true;
             }
-            syncMicQuery.running = false;
-            syncMicQuery.running = true;
-
             if (drawerTemplate.isOpen) {
                 syncDevicesQuery.running = false;
                 syncDevicesQuery.running = true;
@@ -57,45 +50,15 @@ Item {
                         let parts = cleaned.split(" ");
                         if (parts.length >= 2) {
                             let volVal = parseFloat(parts[1]);
-                            if (!isNaN(volVal)) {
-                                audioRoot.speakerVol = volVal;
-                                if (audioRoot.activeTab === "speaker" && !globalVolumeSlider.pressed) {
-                                    if (Math.abs(globalVolumeSlider.value - volVal) > 0.01) {
-                                        globalVolumeSlider.value = volVal;
-                                    }
+                            if (!isNaN(volVal) && !globalVolumeSlider.pressed) {
+                                if (Math.abs(globalVolumeSlider.value - volVal) > 0.001) {
+                                    globalVolumeSlider.value = volVal;
+                                    checkUserActivity();
                                 }
                             }
                         }
                     }
-                } catch(e) {}
-            }
-        }
-    }
-
-    Process {
-        id: syncMicQuery
-        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"]
-        running: false
-        stdout: StdioCollector {
-            onTextChanged: {
-                try {
-                    let cleaned = text.trim();
-                    if (cleaned.startsWith("Volume:")) {
-                        audioRoot.micMuted = cleaned.includes("[MUTED]");
-                        let parts = cleaned.split(" ");
-                        if (parts.length >= 2) {
-                            let volVal = parseFloat(parts[1]);
-                            if (!isNaN(volVal)) {
-                                audioRoot.micVol = volVal;
-                                if (audioRoot.activeTab === "mic" && !globalVolumeSlider.pressed) {
-                                    if (Math.abs(globalVolumeSlider.value - volVal) > 0.01) {
-                                        globalVolumeSlider.value = volVal;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch(e) {}
+                } catch (e) {}
             }
         }
     }
@@ -171,7 +134,7 @@ Item {
                             deviceListModel.remove(k);
                         }
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
         }
     }
@@ -185,29 +148,9 @@ Item {
         }
     }
 
-    Process {
-        id: adjustVolume
-        running: false
-        function adjust(tab, val) {
-            let target = tab === "mic" ? "@DEFAULT_AUDIO_SOURCE@" : "@DEFAULT_AUDIO_SINK@";
-            command = ["wpctl", "set-volume", target, val.toFixed(2)];
-            running = true;
-        }
-    }
-
-    Process {
-        id: toggleMuteProcess
-        running: false
-        function toggle(tab) {
-            let target = tab === "mic" ? "@DEFAULT_AUDIO_SOURCE@" : "@DEFAULT_AUDIO_SINK@";
-            command = ["wpctl", "set-mute", target, "toggle"];
-            running = true;
-        }
-    }
-
     Timer {
         id: osdAutohideTimer
-        interval: 2000
+        interval: Config.autohideInterval
         running: false
         repeat: false
         onTriggered: closeMenu()
@@ -222,32 +165,15 @@ Item {
     }
 
     function checkUserActivity() {
-        if (globalVolumeSlider.pressed || cardHoverTracker.containsMouse || volumeMouseArea.containsMouse) {
-            osdAutohideTimer.stop(); 
+        if (globalVolumeSlider.pressed || cardHoverTracker.containsMouse || sliderHoverTracker.containsMouse || listContainerMouse.containsMouse) {
+            osdAutohideTimer.stop();
         } else {
-            osdAutohideTimer.restart(); 
+            osdAutohideTimer.restart();
         }
     }
 
     ListModel {
         id: deviceListModel
-    }
-
-    function getActiveSinkName() {
-        for (let i = 0; i < deviceListModel.count; i++) {
-            if (deviceListModel.get(i).active) {
-                return deviceListModel.get(i).name;
-            }
-        }
-        return "Default Audio Controller";
-    }
-
-    onActiveTabChanged: {
-        if (activeTab === "speaker") {
-            globalVolumeSlider.value = audioRoot.speakerVol;
-        } else if (activeTab === "mic") {
-            globalVolumeSlider.value = audioRoot.micVol;
-        }
     }
 
     Connections {
@@ -272,10 +198,10 @@ Item {
             Text {
                 id: volumeIcon
                 Layout.alignment: Qt.AlignHCenter
-                text: (audioRoot.isMuted || audioRoot.speakerVol <= 0.01) ? "volume_off" : (audioRoot.speakerVol > 0.50 ? "volume_up" : "volume_down")
+                text: (audioRoot.isMuted || audioRoot.currentVol <= 0.01) ? "volume_off" : (audioRoot.currentVol > 0.50 ? "volume_up" : "volume_down")
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 24
-                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff" 
+                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
             }
         }
 
@@ -294,44 +220,15 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: toggleMenu()
-            onContainsMouseChanged: {
-                if (containsMouse) {
-                    drawerTemplate.isOpen = true;
-                }
-                checkUserActivity();
-            }
-            onWheel: (wheel) => {
-                let delta = wheel.angleDelta.y;
-                let step = 0.02;
-                if (audioRoot.activeTab === "mic") {
-                    let newVal = audioRoot.micVol + (delta > 0 ? step : -step);
-                    audioRoot.micVol = Math.max(0.0, Math.min(1.0, newVal));
-                    adjustVolume.adjust("mic", audioRoot.micVol);
-                    if (globalVolumeSlider.activeFocus || globalVolumeSlider.visible) {
-                        globalVolumeSlider.value = audioRoot.micVol;
-                    }
-                } else {
-                    let newVal = audioRoot.speakerVol + (delta > 0 ? step : -step);
-                    audioRoot.speakerVol = Math.max(0.0, Math.min(1.0, newVal));
-                    adjustVolume.adjust("speaker", audioRoot.speakerVol);
-                    if (globalVolumeSlider.activeFocus || globalVolumeSlider.visible) {
-                        globalVolumeSlider.value = audioRoot.speakerVol;
-                    }
-                }
-                checkUserActivity();
-                wheel.accepted = true;
-            }
         }
     }
 
     PanelDrawer {
         id: drawerTemplate
         isOpen: false
-        drawerWidth: 240
-        drawerHeight: 240
+        drawerHeight: Math.min(146 + (deviceListModel.count * 40), 300)
         modalToken: "audio"
         anchorTop: false
-        anchorRight: true
 
         onIsOpenChanged: {
             if (isOpen) {
@@ -343,288 +240,222 @@ Item {
             }
         }
 
+        Behavior on drawerHeight {
+            NumberAnimation {
+                duration: 150
+                easing.type: Easing.OutCubic
+            }
+        }
+
         MouseArea {
             id: cardHoverTracker
             anchors.fill: parent
             hoverEnabled: true
             onContainsMouseChanged: checkUserActivity()
-            onPressed: (mouse) => { mouse.accepted = true; checkUserActivity(); }
         }
 
-        component TabButton : Rectangle {
-            id: tabBtn
-            property string tabName: ""
-            property string iconName: ""
-            property bool isSelected: audioRoot.activeTab === tabName
+        MouseArea {
+            anchors.fill: parent
+            onPressed: mouse => {
+                mouse.accepted = true;
+                checkUserActivity();
+            }
+        }
 
-            width: 32
-            height: 48
-            radius: 16
-            color: isSelected ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : "transparent"
+        Item {
+            id: layoutFocusWrapper
+            anchors.fill: parent
+            focus: true
 
             Text {
-                anchors.centerIn: parent
-                text: tabBtn.iconName
-                font.family: "Material Symbols Outlined"
-                font.pixelSize: 18
-                color: tabBtn.isSelected 
-                    ? (rootScope.theme ? rootScope.theme.theme_onPrimary : "#11111b") 
-                    : (tabMouse.containsMouse ? "#ffffff" : (rootScope.theme ? rootScope.theme.theme_outline : "#80ffffff"))
+                id: titleLabel
+                text: "Audio"
+                font.family: "Rubik"
+                font.pixelSize: 16
+                font.weight: Font.Bold
+                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                x: 14
+                y: 14
             }
 
-            MouseArea {
-                id: tabMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    audioRoot.activeTab = tabBtn.tabName;
+            Rectangle {
+                id: headerDivider
+                width: Config.drawerTargetWidth - 24
+                height: 1
+                color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+                x: 12
+                y: 44
+            }
+
+            Slider {
+                id: globalVolumeSlider
+                width: Config.drawerTargetWidth - 64
+                height: 32
+                x: 12
+                y: 54
+                orientation: Qt.Horizontal
+                from: 0.0
+                to: 1.0
+                value: 0.0
+
+                onPressedChanged: checkUserActivity()
+                onMoved: {
+                    adjustVolume.running = false;
+                    adjustVolume.running = true;
                     checkUserActivity();
                 }
+
+                background: Rectangle {
+                    height: 3
+                    radius: 0
+                    color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+                    width: globalVolumeSlider.availableWidth
+                    x: globalVolumeSlider.leftPadding
+                    y: globalVolumeSlider.topPadding + globalVolumeSlider.availableHeight / 2 - height / 2
+
+                    Rectangle {
+                        height: parent.height
+                        width: globalVolumeSlider.visualPosition * parent.width
+                        color: rootScope.theme ? rootScope.theme.theme_primary : "#ffffff"
+                        radius: 0
+                    }
+                }
+
+                handle: Rectangle {
+                    width: 16
+                    height: 16
+                    radius: 8
+                    color: rootScope.theme ? rootScope.theme.theme_primary : "#ffffff"
+                    x: globalVolumeSlider.leftPadding + globalVolumeSlider.visualPosition * (globalVolumeSlider.availableWidth - width)
+                    y: globalVolumeSlider.topPadding + globalVolumeSlider.availableHeight / 2 - height / 2
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                    }
+                }
+
+                MouseArea {
+                    id: sliderHoverTracker
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                    onContainsMouseChanged: checkUserActivity()
+                }
             }
-        }
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 8
-            spacing: 0
+            Text {
+                text: Math.round(globalVolumeSlider.value * 100) + "%"
+                font.family: "Rubik"
+                font.pixelSize: 12
+                font.bold: true
+                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                anchors.verticalCenter: globalVolumeSlider.verticalCenter
+                anchors.right: parent.right
+                anchors.rightMargin: 14
+            }
 
-            // Left Main content
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 6
+            Rectangle {
+                id: sliderDivider
+                width: Config.drawerTargetWidth - 24
+                height: 1
+                color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+                x: 12
+                y: 94
+            }
 
-                StackLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    currentIndex: audioRoot.activeTab === "devices" ? 1 : 0
+            Text {
+                id: outputsLabel
+                text: "Outputs"
+                font.family: "Rubik"
+                font.pixelSize: 13
+                font.bold: true
+                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                x: 14
+                y: 104
+            }
 
-                    // SLIDER VIEW (Speaker or Mic)
-                    ColumnLayout {
-                        spacing: 4
+            Item {
+                id: listContainer
+                width: Config.drawerTargetWidth - 24
+                x: 12
+                anchors.top: outputsLabel.bottom
+                anchors.bottom: parent.bottom
+                anchors.topMargin: 6
+                anchors.bottomMargin: 12
 
-                        Text {
-                            text: Math.round(globalVolumeSlider.value * 100) + "%"
-                            font.family: "Rubik"
-                            font.pixelSize: 14
-                            font.weight: Font.Bold
-                            color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
-                            Layout.alignment: Qt.AlignHCenter
-                        }
+                MouseArea {
+                    id: listContainerMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                    onContainsMouseChanged: checkUserActivity()
+                }
 
-                        Slider {
-                            id: globalVolumeSlider
-                            Layout.preferredHeight: 110
-                            Layout.preferredWidth: 32
-                            Layout.alignment: Qt.AlignHCenter
-                            orientation: Qt.Vertical
-                            from: 0.0
-                            to: 1.0
+                ListView {
+                    id: deviceListView
+                    anchors.fill: parent
+                    model: deviceListModel
+                    clip: true
+                    spacing: 4
 
-                            onPressedChanged: checkUserActivity()
-                            onMoved: {
-                                adjustVolume.adjust(audioRoot.activeTab, value);
-                                checkUserActivity();
-                            }
+                    delegate: Item {
+                        width: deviceListView.width
+                        height: 36
 
-                            background: Rectangle {
-                                implicitWidth: 14
-                                implicitHeight: 110
-                                radius: 7
-                                color: "#20ffffff"
-                                x: globalVolumeSlider.width / 2 - width / 2
-                                y: 0
-
-                                Rectangle {
-                                    width: parent.width
-                                    height: (1.0 - globalVolumeSlider.visualPosition) * parent.height
-                                    color: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa" 
-                                    radius: 7
-                                    anchors.bottom: parent.bottom
-                                }
-                            }
-
-                            handle: Rectangle {
-                                width: 18
-                                height: 18
-                                radius: 9
-                                color: "#ffffff"
-                                border.color: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa"
-                                border.width: 1.5
-                                x: globalVolumeSlider.width / 2 - width / 2
-                                y: globalVolumeSlider.visualPosition * (globalVolumeSlider.availableHeight - height)
-                            }
-                        }
-
-                        // Mute button
                         Rectangle {
-                            Layout.alignment: Qt.AlignHCenter
-                            width: 76
-                            height: 24
-                            radius: 12
-                            color: (audioRoot.activeTab === "mic" ? audioRoot.micMuted : audioRoot.isMuted) ? "#40ff5555" : "#20ffffff"
-                            border.color: (audioRoot.activeTab === "mic" ? audioRoot.micMuted : audioRoot.isMuted) ? "#ff5555" : "transparent"
-                            border.width: 1
+                            anchors.fill: parent
+                            radius: 0
+                            color: active ? (rootScope.theme ? rootScope.theme.theme_outline : "#45ffffff") : (deviceMouse.containsMouse ? (rootScope.theme ? rootScope.theme.theme_outline : "#1affffff") : "transparent")
+                            border.width: 0
 
                             RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 4
-                                Text {
-                                    text: audioRoot.activeTab === "mic" ? "mic_off" : "volume_off"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 12
-                                    color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Rectangle {
+                                    width: 6
+                                    height: 6
+                                    radius: 3
+                                    color: active ? (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff") : "transparent"
+                                    Layout.alignment: Qt.AlignVCenter
                                 }
+
                                 Text {
-                                    text: "Mute"
+                                    text: name
                                     font.family: "Rubik"
-                                    font.pixelSize: 10
-                                    font.bold: true
-                                    color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                                    font.pixelSize: 12
+                                    color: active ? (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff") : (rootScope.theme ? rootScope.theme.theme_fg : "#59ffffff")
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
                                 }
                             }
 
                             MouseArea {
+                                id: deviceMouse
                                 anchors.fill: parent
+                                hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    toggleMuteProcess.toggle(audioRoot.activeTab);
-                                    if (audioRoot.activeTab === "mic") {
-                                        syncMicQuery.running = false;
-                                        syncMicQuery.running = true;
-                                    } else {
-                                        syncVolumeQuery.running = false;
-                                        syncVolumeQuery.running = true;
-                                    }
+                                    changeDeviceProcess.switchSink(devId);
+                                    syncDevicesQuery.running = false;
+                                    syncDevicesQuery.running = true;
                                     checkUserActivity();
                                 }
                             }
                         }
                     }
-
-                    // DEVICE LIST VIEW
-                    ColumnLayout {
-                        spacing: 4
-
-                        Text {
-                            text: "Outputs"
-                            font.family: "Rubik"
-                            font.pixelSize: 12
-                            font.weight: Font.Bold
-                            color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            color: "transparent"
-                            border.color: rootScope.theme ? rootScope.theme.theme_outline : "#20ffffff"
-                            border.width: 1
-                            radius: 6
-                            clip: true
-
-                            ListView {
-                                id: deviceListView
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                model: deviceListModel
-                                spacing: 4
-
-                                delegate: Rectangle {
-                                    width: deviceListView.width
-                                    height: 28
-                                    radius: 4
-                                    color: active ? (rootScope.theme ? rootScope.theme.theme_outline : "#40ffffff") : (devMouse.containsMouse ? "#10ffffff" : "transparent")
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 6
-                                        anchors.rightMargin: 6
-                                        spacing: 6
-
-                                        Rectangle {
-                                            width: 4
-                                            height: 4
-                                            radius: 2
-                                            color: active ? (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff") : "transparent"
-                                        }
-
-                                        Text {
-                                            text: name
-                                            font.family: "Rubik"
-                                            font.pixelSize: 10
-                                            color: active ? (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff") : (rootScope.theme ? rootScope.theme.theme_fg : "#a0ffffff")
-                                            elide: Text.ElideRight
-                                            Layout.fillWidth: true
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: devMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            changeDeviceProcess.switchSink(devId);
-                                            syncDevicesQuery.running = false;
-                                            syncDevicesQuery.running = true;
-                                            checkUserActivity();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Active device name at the very bottom
-                Text {
-                    text: audioRoot.activeTab === "mic" ? "Default Mic Source" : getActiveSinkName()
-                    font.family: "Rubik"
-                    font.pixelSize: 9
-                    color: rootScope.theme ? rootScope.theme.theme_outline : "#80ffffff"
-                    Layout.alignment: Qt.AlignHCenter
-                    elide: Text.ElideRight
-                    Layout.maximumWidth: 160
                 }
             }
+        }
 
-            // Separator vertical line
-            Rectangle {
-                Layout.fillHeight: true
-                width: 1
-                color: rootScope.theme ? rootScope.theme.theme_outline : "#20ffffff"
-                Layout.leftMargin: 4
-                Layout.rightMargin: 4
-            }
-
-            // Right Sidebar (tabs)
-            ColumnLayout {
-                Layout.preferredWidth: 36
-                Layout.fillHeight: true
-                spacing: 12
-
-                Item { Layout.fillHeight: true }
-
-                TabButton {
-                    tabName: "speaker"
-                    iconName: "volume_up"
-                }
-
-                TabButton {
-                    tabName: "mic"
-                    iconName: "mic"
-                }
-
-                TabButton {
-                    tabName: "devices"
-                    iconName: "speaker_group"
-                }
-
-                Item { Layout.fillHeight: true }
-            }
+        Process {
+            id: adjustVolume
+            command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", globalVolumeSlider.value.toFixed(2)]
+            running: false
         }
     }
 }

@@ -7,7 +7,7 @@ import Quickshell.Io
 
 Item {
     id: hudRoot
-    
+
     property real volumeLevel: 0.0
     property bool isMuted: false
     property bool visibleActive: false
@@ -25,19 +25,29 @@ Item {
 
     SequentialAnimation {
         id: fadeOutAnimation
-        NumberAnimation { target: innerContentCard; property: "opacity"; to: 0.0; duration: 120; easing.type: Easing.OutQuad }
-        PropertyAction { 
-            target: hudWindowSurface; 
-            property: "WlrLayershell.layer"; 
-            value: WlrLayer.Background 
+        NumberAnimation {
+            target: innerContentCard
+            property: "opacity"
+            to: 0.0
+            duration: 120
+            easing.type: Easing.OutQuad
         }
-        PropertyAction { target: hudRoot; property: "visibleActive"; value: false }
+        PropertyAction {
+            target: hudWindowSurface
+            property: "WlrLayershell.layer"
+            value: WlrLayer.Background
+        }
+        PropertyAction {
+            target: hudRoot
+            property: "visibleActive"
+            value: false
+        }
     }
 
     function triggerHudPopup(newVol, muteState) {
         hudRoot.volumeLevel = newVol;
         hudRoot.isMuted = muteState;
-        
+
         if (!hudRoot.visibleActive && !rootScope.audioSliderActive) {
             fadeOutAnimation.stop();
             hudWindowSurface.WlrLayershell.layer = WlrLayer.Overlay;
@@ -64,7 +74,7 @@ Item {
         id: hudVolumeWatcher
         command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
         running: true
-        
+
         stdout: StdioCollector {
             onTextChanged: {
                 try {
@@ -81,7 +91,7 @@ Item {
                             }
                         }
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
         }
     }
@@ -90,17 +100,17 @@ Item {
         id: hudWindowSurface
         visible: true
         screen: hudRoot.targetScreen ? hudRoot.targetScreen : screen
-        
+
         implicitWidth: 48
         implicitHeight: 200
-        
+
         anchors.left: true
         anchors.top: false
         anchors.bottom: false
         anchors.right: false
 
         color: "transparent"
-        
+
         WlrLayershell.layer: WlrLayer.Background
         WlrLayershell.namespace: "quickshell-overlay"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -113,8 +123,18 @@ Item {
 
         SequentialAnimation {
             id: fadeInAnimation
-            NumberAnimation { target: innerContentCard; property: "opacity"; to: 1.0; duration: 100; easing.type: Easing.OutQuad }
-            PropertyAction { target: dismissTimer; property: "running"; value: true }
+            NumberAnimation {
+                target: innerContentCard
+                property: "opacity"
+                to: 1.0
+                duration: 100
+                easing.type: Easing.OutQuad
+            }
+            PropertyAction {
+                target: dismissTimer
+                property: "running"
+                value: true
+            }
         }
 
         Rectangle {
@@ -125,13 +145,16 @@ Item {
             opacity: 0.0
 
             Behavior on opacity {
-                NumberAnimation { duration: 140; easing.type: Easing.OutQuad }
+                NumberAnimation {
+                    duration: 140
+                    easing.type: Easing.OutQuad
+                }
             }
 
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
-                
+
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
                 anchors.topMargin: 16
@@ -154,7 +177,10 @@ Item {
                         anchors.bottom: parent.bottom
 
                         Behavior on height {
-                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                            NumberAnimation {
+                                duration: 80
+                                easing.type: Easing.OutCubic
+                            }
                         }
                     }
                 }
@@ -162,7 +188,7 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 4
-                    
+
                     Text {
                         text: Math.round(hudRoot.volumeLevel * 100) + "%"
                         font.family: "Rubik"

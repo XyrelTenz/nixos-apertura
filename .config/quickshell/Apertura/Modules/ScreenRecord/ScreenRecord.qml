@@ -8,6 +8,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import "../.."
 
+//TODO: Fix audio not start
 Item {
     id: recordRoot
 
@@ -21,7 +22,8 @@ Item {
     property bool isLoaded: false
 
     function saveSettings() {
-        if (!isLoaded) return;
+        if (!isLoaded)
+            return;
         let data = {
             "recordAudio": recordRoot.recordAudio,
             "highQualityFps": recordRoot.highQualityFps
@@ -41,9 +43,11 @@ Item {
             if (raw && raw.trim() !== "") {
                 try {
                     let parsed = JSON.parse(raw);
-                    if (parsed.recordAudio !== undefined) recordRoot.recordAudio = parsed.recordAudio;
-                    if (parsed.highQualityFps !== undefined) recordRoot.highQualityFps = parsed.highQualityFps;
-                } catch(e) {}
+                    if (parsed.recordAudio !== undefined)
+                        recordRoot.recordAudio = parsed.recordAudio;
+                    if (parsed.highQualityFps !== undefined)
+                        recordRoot.highQualityFps = parsed.highQualityFps;
+                } catch (e) {}
             }
             recordRoot.isLoaded = true;
         }
@@ -99,10 +103,7 @@ Item {
         onTriggered: {
             recordRoot.recordingDuration += 1;
             if (recordRoot.recordingDuration % 20 === 0) {
-                Quickshell.execDetached([
-                    "notify-send", "-t", "3000", "-a", "Screen Recorder", "-i", "media-record",
-                    "Screen Recording", "Recording is ongoing... (" + formatDuration(recordRoot.recordingDuration) + ")"
-                ]);
+                Quickshell.execDetached(["notify-send", "-t", "3000", "-a", "Screen Recorder", "-i", "media-record", "Screen Recording", "Recording is ongoing... (" + formatDuration(recordRoot.recordingDuration) + ")"]);
             }
         }
         onRunningChanged: {
@@ -138,8 +139,18 @@ Item {
             SequentialAnimation on opacity {
                 running: recordRoot.isRecording
                 loops: Animation.Infinite
-                NumberAnimation { from: 1.0; to: 0.4; duration: 800; easing.type: Easing.InOutQuad }
-                NumberAnimation { from: 0.4; to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                NumberAnimation {
+                    from: 1.0
+                    to: 0.4
+                    duration: 800
+                    easing.type: Easing.InOutQuad
+                }
+                NumberAnimation {
+                    from: 0.4
+                    to: 1.0
+                    duration: 800
+                    easing.type: Easing.InOutQuad
+                }
             }
         }
 
@@ -181,7 +192,10 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             onContainsMouseChanged: checkUserActivity()
-            onPressed: (mouse) => { mouse.accepted = true; checkUserActivity(); }
+            onPressed: mouse => {
+                mouse.accepted = true;
+                checkUserActivity();
+            }
         }
 
         ColumnLayout {
@@ -191,7 +205,12 @@ Item {
             spacing: 8
             focus: true
 
-            Keys.onPressed: (event) => { if (event.key === Qt.Key_Escape) { drawerTemplate.isOpen = false; event.accepted = true; } }
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_Escape) {
+                    drawerTemplate.isOpen = false;
+                    event.accepted = true;
+                }
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -203,10 +222,16 @@ Item {
                     color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
                     Layout.alignment: Qt.AlignVCenter
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff" }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -230,15 +255,37 @@ Item {
                         color: "#ff5555"
                         anchors.centerIn: parent
 
-                        Behavior on radius { NumberAnimation { duration: 150 } }
-                        Behavior on width { NumberAnimation { duration: 150 } }
-                        Behavior on height { NumberAnimation { duration: 150 } }
+                        Behavior on radius {
+                            NumberAnimation {
+                                duration: 150
+                            }
+                        }
+                        Behavior on width {
+                            NumberAnimation {
+                                duration: 150
+                            }
+                        }
+                        Behavior on height {
+                            NumberAnimation {
+                                duration: 150
+                            }
+                        }
 
                         SequentialAnimation on opacity {
                             running: recordRoot.isRecording
                             loops: Animation.Infinite
-                            NumberAnimation { from: 1.0; to: 0.4; duration: 800; easing.type: Easing.InOutQuad }
-                            NumberAnimation { from: 0.4; to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                            NumberAnimation {
+                                from: 1.0
+                                to: 0.4
+                                duration: 800
+                                easing.type: Easing.InOutQuad
+                            }
+                            NumberAnimation {
+                                from: 0.4
+                                to: 1.0
+                                duration: 800
+                                easing.type: Easing.InOutQuad
+                            }
                         }
                     }
 
@@ -250,10 +297,7 @@ Item {
                         onClicked: {
                             if (!recordRoot.isRecording) {
                                 let recordMsg = "Recording Started" + (recordRoot.recordAudio ? " with Audio" : "");
-                                Quickshell.execDetached([
-                                    "notify-send", "-a", "Screen Recorder", "-i", "media-record",
-                                    recordMsg, "Saving to ~/Videos/ScreenRecord"
-                                ]);
+                                Quickshell.execDetached(["notify-send", "-a", "Screen Recorder", "-i", "media-record", recordMsg, "Saving to ~/Videos/ScreenRecord"]);
 
                                 let cmd = "mkdir -p ~/Videos/ScreenRecord && wf-recorder";
                                 if (recordRoot.recordAudio) {
@@ -264,16 +308,11 @@ Item {
                                 }
                                 cmd += " -f ~/Videos/ScreenRecord/recording_$(date +%Y%m%d_%H%M%S).mp4";
 
-                                Quickshell.execDetached([
-                                    "sh", "-c", cmd
-                                ]);
+                                Quickshell.execDetached(["sh", "-c", cmd]);
                                 recordRoot.isRecording = true;
                             } else {
                                 Quickshell.execDetached(["pkill", "-INT", "wf-recorder"]);
-                                Quickshell.execDetached([
-                                    "notify-send", "-a", "Screen Recorder", "-i", "media-record",
-                                    "Recording Stopped", "Saved to ~/Videos/ScreenRecord"
-                                ]);
+                                Quickshell.execDetached(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "Recording Stopped", "Saved to ~/Videos/ScreenRecord"]);
                                 recordRoot.isRecording = false;
                             }
                             checkUserActivity();
@@ -299,7 +338,11 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff" }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+            }
 
             Text {
                 text: "Recent Recordings"
@@ -403,7 +446,11 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff" }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+            }
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -425,7 +472,9 @@ Item {
                         font.pixelSize: 11
                         color: recordRoot.recordAudio ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : (rootScope.theme ? Qt.alpha(rootScope.theme.theme_fg, 0.4) : "#40ffffff")
                     }
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
                     Rectangle {
                         width: 30
                         height: 16
@@ -433,11 +482,17 @@ Item {
                         color: recordRoot.recordAudio ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : (rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff")
                         opacity: recordRoot.isRecording ? 0.5 : 1.0
                         Rectangle {
-                            width: 12; height: 12; radius: 6
+                            width: 12
+                            height: 12
+                            radius: 6
                             color: recordRoot.recordAudio ? (rootScope.theme ? rootScope.theme.theme_onPrimary : "#11111b") : "#ffffff"
                             anchors.verticalCenter: parent.verticalCenter
                             x: recordRoot.recordAudio ? 16 : 2
-                            Behavior on x { NumberAnimation { duration: 120 } }
+                            Behavior on x {
+                                NumberAnimation {
+                                    duration: 120
+                                }
+                            }
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -459,7 +514,9 @@ Item {
                         font.pixelSize: 11
                         color: recordRoot.highQualityFps ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : (rootScope.theme ? Qt.alpha(rootScope.theme.theme_fg, 0.4) : "#40ffffff")
                     }
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
                     Rectangle {
                         width: 30
                         height: 16
@@ -467,11 +524,17 @@ Item {
                         color: recordRoot.highQualityFps ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : (rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff")
                         opacity: recordRoot.isRecording ? 0.5 : 1.0
                         Rectangle {
-                            width: 12; height: 12; radius: 6
+                            width: 12
+                            height: 12
+                            radius: 6
                             color: recordRoot.highQualityFps ? (rootScope.theme ? rootScope.theme.theme_onPrimary : "#11111b") : "#ffffff"
                             anchors.verticalCenter: parent.verticalCenter
                             x: recordRoot.highQualityFps ? 16 : 2
-                            Behavior on x { NumberAnimation { duration: 120 } }
+                            Behavior on x {
+                                NumberAnimation {
+                                    duration: 120
+                                }
+                            }
                         }
                         MouseArea {
                             anchors.fill: parent
