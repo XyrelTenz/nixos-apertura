@@ -22,5 +22,9 @@ in
     _linkConfig "cava"                "cava"
     _linkConfig "nvim"                "nvim"
     _linkConfig "quickshell/Apertura" "quickshell/Apertura"
+    _linkConfig "fish"                "fish"
+
+    # Starship config lives at ~/.config/starship.toml
+    ln -sfn "${repoPath}/starship.toml" "$HOME/.config/starship.toml"
   '';
 }

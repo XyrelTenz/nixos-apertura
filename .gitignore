@@ -1,9 +1,81 @@
-# Nix build artifacts
+# ==============================================================================
+# Nix & NixOS Build Artifacts
+# ==============================================================================
 result
 result-*
-
-# Neovim lazy-lock (optional: commit this if you want reproducible plugin versions)
-# .config/nvim/lazy-lock.json
-
-# System-generated
 .direnv/
+.envrc.local
+
+# ==============================================================================
+# System & Desktop Artifacts
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==============================================================================
+# Shell & Environment Secrets
+# ==============================================================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.pub
+*secret*
+credentials*
+private_keys/
+
+# ==============================================================================
+# Text Editor & IDE Caches
+# ==============================================================================
+# Vim/Neovim swap, backup, and undo logs
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+.netrwhist
+*~
+
+# VS Code workspace settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# ==============================================================================
+# Common Development & Language Artifacts
+# ==============================================================================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Node / JS
+node_modules/
+.npm/
+.yarn/
+yarn-error.log
+
+# Rust
+target/
+Cargo.lock
+
+# ==============================================================================
+# Neovim Plugin Lockfiles
+# ==============================================================================
+# Uncomment the line below if you want lazy.nvim to NOT track plugin versions in Git.
+# Otherwise, keep it committed for reproducible editor environments.
+# .config/nvim/lazy-lock.json

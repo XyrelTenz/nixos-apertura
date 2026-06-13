@@ -28,7 +28,7 @@ return {
 			prefer_startup_root = true,
 			filters = {
 				custom = { "node_modules", "target", "build", "dist", "out" },
-				dotfiles = true,
+				dotfiles = false,
 			},
 			on_attach = function(bufnr)
 				local api = require("nvim-tree.api")

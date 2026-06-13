@@ -281,21 +281,21 @@ Item {
 
                     Item {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 4
+                        Layout.preferredHeight: 6
 
                         Rectangle {
                             anchors.fill: parent
                             color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
                             opacity: 0.12
-                            radius: 0
+                            radius: 3
                         }
 
                         Rectangle {
                             id: cpuProgressBar
                             height: parent.height
                             width: parent.width * (monitorRoot.cpuPercent / 100.0)
-                            color: monitorRoot.theme ? monitorRoot.theme.theme_primary : "#ffffff"
-                            radius: 0
+                            color: monitorRoot.cpuPercent >= 90 ? "#f38ba8" : (monitorRoot.cpuPercent >= 70 ? "#f9e2af" : (monitorRoot.theme ? monitorRoot.theme.theme_primary : "#89b4fa"))
+                            radius: 3
 
                             Behavior on width { 
                                 NumberAnimation { duration: 250; easing.type: Easing.OutCubic } 
@@ -323,22 +323,22 @@ Item {
 
                     Item {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: monitorRoot.hasGpu ? 4 : 0
+                        Layout.preferredHeight: monitorRoot.hasGpu ? 6 : 0
                         visible: monitorRoot.hasGpu
 
                         Rectangle {
                             anchors.fill: parent
                             color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
                             opacity: 0.12
-                            radius: 0
+                            radius: 3
                         }
 
                         Rectangle {
                             id: gpuProgressBar
                             height: parent.height
                             width: parent.width * (monitorRoot.gpuPercent / 100.0)
-                            color: monitorRoot.theme ? monitorRoot.theme.theme_primary : "#ffffff"
-                            radius: 0
+                            color: monitorRoot.gpuPercent >= 90 ? "#f38ba8" : (monitorRoot.gpuPercent >= 70 ? "#f9e2af" : (monitorRoot.theme ? monitorRoot.theme.theme_primary : "#89b4fa"))
+                            radius: 3
 
                             Behavior on width { 
                                 NumberAnimation { duration: 250; easing.type: Easing.OutCubic } 
@@ -360,21 +360,21 @@ Item {
 
                     Item {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 4
+                        Layout.preferredHeight: 6
 
                         Rectangle {
                             anchors.fill: parent
                             color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
                             opacity: 0.12
-                            radius: 0
+                            radius: 3
                         }
 
                         Rectangle {
                             id: ramProgressBar
                             height: parent.height
                             width: parent.width * (monitorRoot.ramPercent / 100.0)
-                            color: monitorRoot.theme ? monitorRoot.theme.theme_primary : "#ffffff"
-                            radius: 0
+                            color: monitorRoot.ramPercent >= 90 ? "#f38ba8" : (monitorRoot.ramPercent >= 70 ? "#f9e2af" : (monitorRoot.theme ? monitorRoot.theme.theme_primary : "#89b4fa"))
+                            radius: 3
 
                             Behavior on width { 
                                 NumberAnimation { duration: 250; easing.type: Easing.OutCubic } 
@@ -396,21 +396,21 @@ Item {
 
                     Item {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 4
+                        Layout.preferredHeight: 6
 
                         Rectangle {
                             anchors.fill: parent
                             color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
                             opacity: 0.12
-                            radius: 0
+                            radius: 3
                         }
 
                         Rectangle {
                             id: diskProgressBar
                             height: parent.height
                             width: parent.width * (monitorRoot.diskPercent / 100.0)
-                            color: monitorRoot.theme ? monitorRoot.theme.theme_primary : "#ffffff"
-                            radius: 0
+                            color: monitorRoot.diskPercent >= 90 ? "#f38ba8" : (monitorRoot.diskPercent >= 70 ? "#f9e2af" : (monitorRoot.theme ? monitorRoot.theme.theme_primary : "#89b4fa"))
+                            radius: 3
 
                             Behavior on width { 
                                 NumberAnimation { duration: 250; easing.type: Easing.OutCubic } 
@@ -454,19 +454,20 @@ Item {
 
                     delegate: Rectangle {
                         width: processListView.width
-                        height: 24
-                        color: "transparent"
+                        height: 26
+                        color: procMouse.containsMouse ? "#0dffffff" : "transparent"
+                        radius: 4
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 4
-                            anchors.rightMargin: 4
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
 
                             Text {
                                 text: model.name
                                 font.family: "Rubik"
                                 font.pixelSize: 11
-                                color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#59ffffff"
+                                color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -475,9 +476,16 @@ Item {
                                 text: model.cpu + "%"
                                 font.family: "Rubik"
                                 font.pixelSize: 11
-                                font.weight: Font.Medium
-                                color: monitorRoot.theme ? monitorRoot.theme.theme_fg : "#ffffff"
+                                font.weight: Font.Bold
+                                color: parseFloat(model.cpu) >= 15 ? "#f38ba8" : (monitorRoot.theme ? monitorRoot.theme.theme_primary : "#89b4fa")
                             }
+                        }
+
+                        MouseArea {
+                            id: procMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: Qt.NoButton
                         }
                     }
                 }

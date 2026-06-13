@@ -11,6 +11,8 @@
     unzip
     go
     python3
+    fish
+    starship
 
     # ── Desktop & Apps ───────────────────────────────────────────────────
     kdePackages.dolphin
@@ -28,6 +30,8 @@
     ninja
     cmake
     pkg-config
+    cargo
+    rustc
 
     # ── LSPs & Formatters ────────────────────────────────────────────────
     clang-tools
@@ -36,8 +40,9 @@
     vue-language-server
     lua-language-server
     gopls
+    gotools              # provides goimports (go-tools only has staticcheck etc)
     golines
-    go-tools
+    go-tools             # staticcheck, structlayout etc
     sqls
     lazygit
     gcc
@@ -52,6 +57,13 @@
     nixd
     alejandra
     kdePackages.qtdeclarative
+    prettier             # JS/TS/CSS/HTML formatter
+    ktfmt                # Kotlin formatter
+    google-java-format   # Java formatter
+    rustfmt              # Rust formatter
+
+    # ── Editors ──────────────────────────────────────────────────────────
+    zed-editor-fhs   # FHS-wrapped: extensions work on NixOS out of the box
 
     # ── Apertura / Aesthetics ────────────────────────────────────────────
     grim

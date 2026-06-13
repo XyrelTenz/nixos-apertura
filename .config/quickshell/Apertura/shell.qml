@@ -18,8 +18,8 @@ import "Modules/NetMonitor"
 import "Modules/Notes"
 import "Modules/Notification"
 import "Modules/Power"
+import "Modules/ScreenRecord"
 import "Modules/SysMonitor"
-import "Modules/Vpn"
 import "Modules/Wallpaper"
 import "Modules/Wifi"
 import "Modules/Workspaces"
@@ -527,10 +527,7 @@ Scope {
                                     DrawerModule { id: wrapAudio; Audio { anchors.centerIn: parent } }
                                     DrawerModule { id: wrapSys; SysMonitor { id: sysMonitorItem; theme: rootScope.theme; anchors.centerIn: parent } }
                                     DrawerModule { id: wrapNet; NetMonitor { id: netMonitorItem; anchors.centerIn: parent } }
-                                    DrawerModule { 
-                                        id: wrapVpn
-                                        Vpn { anchors.centerIn: parent } 
-                                    }
+                                    DrawerModule { id: wrapRecord; ScreenRecord { id: screenRecordItem; anchors.centerIn: parent } }
                                     DrawerModule { id: wrapPower; Power { anchors.centerIn: parent } }
                                 }
                             }

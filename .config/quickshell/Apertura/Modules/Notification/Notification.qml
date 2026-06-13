@@ -169,20 +169,19 @@ Item {
         ColumnLayout {
             id: toastColumn
             width: Config.drawerTargetWidth 
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 12
-            spacing: 8
+            y: 12
+            spacing: 0
 
             states: [
                 State {
                     name: "visible"
                     when: notificationRoot.visibleBanners.length > 0
-                    PropertyChanges { target: toastColumn; x: 0 }
+                    PropertyChanges { target: toastColumn; x: popupToastWindow.width - toastColumn.width - 12 }
                 },
                 State {
                     name: "hidden"
                     when: notificationRoot.visibleBanners.length === 0
-                    PropertyChanges { target: toastColumn; x: -320 }
+                    PropertyChanges { target: toastColumn; x: popupToastWindow.width }
                 }
             ]
 
@@ -206,30 +205,68 @@ Item {
                 model: notificationRoot.visibleBanners
                 delegate: Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: Math.max(60, tSummary.implicitHeight + tBody.implicitHeight + 20)
+                    implicitHeight: Math.max(80, appHeaderRow.height + tSummary.implicitHeight + tBody.implicitHeight + 36)
                     color: "#9911111b" 
-                    border.width: 0
-                    radius: 0
+                    border.color: rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff"
+                    border.width: 1
+                    radius: 10
 
                     property bool isHovered: toastMouseArea.containsMouse
 
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 12
-                        spacing: 4
+                        spacing: 6
+
+                        RowLayout {
+                            id: appHeaderRow
+                            Layout.fillWidth: true
+                            
+                            Text {
+                                text: (modelData.appName || "Notification").toUpperCase()
+                                font.family: "Rubik"
+                                font.pixelSize: 9
+                                font.bold: true
+                                color: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa"
+                                Layout.fillWidth: true
+                            }
+
+                            Text {
+                                text: "close"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 13
+                                color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff"
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: rootScope.theme ? rootScope.theme.theme_outline : "#1affffff"
+                            opacity: 0.5
+                        }
 
                         Text {
                             id: tSummary
                             text: modelData.summary
-                            font.family: "Rubik"; font.pixelSize: 13; font.weight: Font.Bold; color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
-                            Layout.fillWidth: true; elide: Text.ElideRight
+                            font.family: "Rubik"
+                            font.pixelSize: 13
+                            font.bold: true
+                            color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
 
                         Text {
                             id: tBody
                             text: modelData.body
-                            font.family: "Rubik"; font.pixelSize: 12; color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff"
-                            Layout.fillWidth: true; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
+                            font.family: "Rubik"
+                            font.pixelSize: 12
+                            color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
                         }
                     }
 
@@ -386,10 +423,10 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
-                        color: "transparent"
+                        color: cellMouseArea.containsMouse ? "#0dffffff" : "transparent"
                         border.color: cellMouseArea.containsMouse ? (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff") : (rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff") 
                         border.width: 1
-                        radius: 0 
+                        radius: 6
 
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 10; spacing: 2

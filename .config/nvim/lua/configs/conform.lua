@@ -1,18 +1,19 @@
 local options = {
 	formatters_by_ft = {
-		lua = { "stylua" },
-		css = { "prettier" },
-		html = { "prettier" },
-		kotlin = { "ktfmt" },
-		java = { "google_java_format" },
+		lua        = { "stylua" },
+		css        = { "prettier" },
+		html       = { "prettier" },
+		kotlin     = { "ktfmt" },
+		java       = { "google_java_format" },
 		typescript = { "prettier" },
-		vue = { "prettier" },
-		go = { "goimports", "golines" },
-		rust = { "rustfmt" },
-		toml = { "tombi" },
-		cpp = { "clang-format" },
-		nix = { "alejandra" },
-		qml = { "qmlformat" },
+		javascript = { "prettier" },
+		vue        = { "prettier" },
+		go         = { "goimports", "golines" },
+		rust       = { "rustfmt" },
+		cpp        = { "clang_format" },
+		c          = { "clang_format" },
+		nix        = { "alejandra" },
+		qml        = { "qmlformat" },
 	},
 
 	format_on_save = {
@@ -21,17 +22,41 @@ local options = {
 	},
 
 	formatters = {
-		stylua = { command = "stylua" },
-		prettier = { command = "prettier" },
-		ktfmt = { command = "ktfmt" },
-		google_java_format = { command = "google-java-format" },
-		goimports = { command = "goimports" },
-		golines = { command = "golines" },
-		rustfmt = { command = "rustfmt" },
-		tombi = { command = "tombi" },
-		clang_format = { command = "clang-format" },
-		alejandra = { command = "alejandra", args = { "-" }, stdin = true },
-		qmlformat = { command = "qmlformat", args = { "-" }, stdin = true },
+		stylua = {
+			command = "/run/current-system/sw/bin/stylua",
+		},
+		prettier = {
+			command = "/run/current-system/sw/bin/prettier",
+		},
+		ktfmt = {
+			command = "/run/current-system/sw/bin/ktfmt",
+		},
+		google_java_format = {
+			command = "/run/current-system/sw/bin/google-java-format",
+		},
+		goimports = {
+			command = "/run/current-system/sw/bin/goimports",
+		},
+		golines = {
+			command = "/run/current-system/sw/bin/golines",
+		},
+		rustfmt = {
+			command = "/run/current-system/sw/bin/rustfmt",
+		},
+		clang_format = {
+			command = "/run/current-system/sw/bin/clang-format",
+		},
+		alejandra = {
+			command = "/run/current-system/sw/bin/alejandra",
+			args  = { "-" },
+			stdin = true,
+		},
+		-- qmlformat does NOT support stdin — it formats files in-place
+		qmlformat = {
+			command = "/run/current-system/sw/bin/qmlformat",
+			args  = { "--inplace", "$FILENAME" },
+			stdin = false,
+		},
 	},
 }
 

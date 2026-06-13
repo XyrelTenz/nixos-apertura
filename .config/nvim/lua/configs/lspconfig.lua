@@ -39,24 +39,31 @@ vim.lsp.config("vue_ls", {
 	},
 })
 
-vim.lsp.config("dartls", {
-	cmd = { "dart", "language-server", "--client-id", "neovim" },
-	root_dir = vim.fs.root(0, { "pubspec.yaml", ".git" }),
-	settings = {
-		dart = {
-			completeFunctionCalls = true,
-			showTodos = true,
-		},
-	},
-})
-
-local servers = { "html", "cssls", "tailwindcss", "lua_ls", "jdtls", "sqls", "gopls", "dartls", "slint_lsp", "clangd" }
+local servers = { "html", "cssls", "tailwindcss", "jdtls", "sqls", "gopls", "slint_lsp", "clangd" }
 
 for _, lsp in ipairs(servers) do
 	vim.lsp.config(lsp, {
 		cmd = { get_cmd(lsp) },
 	})
 end
+
+local lua_ls_bin = "/run/current-system/sw/bin/lua-language-server"
+
+vim.lsp.config("lua_ls", {
+	cmd = { lua_ls_bin },
+	settings = {
+		Lua = {
+			runtime = { version = "LuaJIT" },
+			workspace = {
+				checkThirdParty = false,
+				library = vim.api.nvim_get_runtime_file("lua", true),
+			},
+			diagnostics = { globals = { "vim", "hl" } },
+			format = { enable = false },
+			telemetry = { enable = false },
+		},
+	},
+})
 
 -- Nix LSP
 vim.lsp.config("nixd", {
@@ -76,10 +83,12 @@ vim.lsp.config("nixd", {
 })
 
 -- QML LSP
+local qml_system_path = "/run/current-system/sw/lib/qt-6/qml"
+
 vim.lsp.config("qmlls", {
-	cmd = { "qmlls" },
+	cmd = { "qmlls", "--import-path", qml_system_path },
 	filetypes = { "qml" },
-	root_dir = vim.fs.root(0, { "qmldir", ".git" }),
+	root_dir = vim.fs.root(0, { "qmldir", "CMakeLists.txt", ".git" }),
 })
 
 vim.lsp.config("rust_analyzer", {
@@ -107,7 +116,6 @@ vim.lsp.enable({
 	"ts_ls",
 	"tailwindcss",
 	"lua_ls",
-	"dartls",
 	"gopls",
 	"sqls",
 	"vue_ls",

@@ -22,6 +22,33 @@ Item {
     property bool showingForgetConfirm: false
     property string selectedSsid: ""
     property bool wifiEnabled: true
+    property bool startupGuard: true
+
+    Timer {
+        id: startupGuardTimer
+        interval: 3000
+        running: true
+        repeat: false
+        onTriggered: wifiRoot.startupGuard = false
+    }
+
+    Process {
+        id: wifiNotificationProcess
+        running: false
+        function notify(summary, body) {
+            command = ["notify-send", "-a", "Apertura Wi-Fi", summary, body];
+            running = true;
+        }
+    }
+
+    onSsidChanged: {
+        if (startupGuard) return;
+        if (ssid !== "Disconnected" && ssid !== "") {
+            wifiNotificationProcess.notify("Connected to Wi-Fi", "Successfully connected to " + ssid);
+        } else {
+            wifiNotificationProcess.notify("Disconnected from Wi-Fi", "You are no longer connected to a network");
+        }
+    }
 
     Process {
         id: hardwareCheck
@@ -69,7 +96,7 @@ Item {
 
     Process {
         id: networkScanner
-        command: ["nmcli", "-t", "-f", "SSID,SECURITY,BARS,ACTIVE", "dev", "wifi"]
+        command: ["nmcli", "-t", "-f", "SSID,SECURITY,SIGNAL,ACTIVE", "dev", "wifi"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -98,11 +125,18 @@ Item {
                         }
 
                         seenSsids.add(ssidName);
+
+                        let sigVal = parseInt(parts[2]) || 0;
+                        let wifiIconName = sigVal < 25  ? "signal_wifi_1_bar" :
+                                           sigVal < 50  ? "signal_wifi_2_bar" :
+                                           sigVal < 75  ? "signal_wifi_3_bar" : "wifi";
+
                         wifiNetworksModel.append({
                             "ssidName": ssidName,
                             "secured": parts[1] !== "" && parts[1] !== "--",
-                            "bars": parts[2],
-                            "isActive": isActive
+                            "bars": parts[2] + "%",
+                            "isActive": isActive,
+                            "sigIcon": wifiIconName
                         });
                     }
                 }
@@ -132,6 +166,7 @@ Item {
     }
 
     function connectToNetwork(targetSsid, password): void {
+        wifiNotificationProcess.notify("Connecting to Wi-Fi", "Attempting to connect to " + targetSsid + "...");
         nmcActionExecutor.command = password !== ""
             ? ["nmcli", "dev", "wifi", "connect", targetSsid, "password", password]
             : ["nmcli", "dev", "wifi", "connect", targetSsid];
@@ -291,15 +326,43 @@ Item {
                 currentIndex: !wifiRoot.wifiEnabled ? 3 : (wifiRoot.enteringPassword ? 1 : (wifiRoot.showingForgetConfirm ? 2 : 0))
 
                 ListView {
-                    id: networkListView; model: wifiNetworksModel; clip: true; spacing: 4
+                    id: networkListView; model: wifiNetworksModel; clip: true; spacing: 6
                     delegate: Rectangle {
-                        width: networkListView.width; height: 34; color: itemMouseArea.containsMouse ? (rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff") : "transparent"; radius: 4
+                        width: networkListView.width; height: 38
+                        color: model.isActive ? (rootScope.theme ? rootScope.theme.theme_outline : "#45ffffff") : (itemMouseArea.containsMouse ? "#1affffff" : "#0dffffff")
+                        border.color: model.isActive ? (rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa") : (rootScope.theme ? rootScope.theme.theme_outline : "#26ffffff")
+                        border.width: 1
+                        radius: 6
+
                         RowLayout {
-                            anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 8
-                            Text { text: model.isActive ? "🛜" : ""; font.pixelSize: 11 }
-                            Text { text: model.ssidName; font.family: "Rubik"; font.pixelSize: 12; font.weight: model.isActive ? Font.Bold : Font.Normal; color: rootScope.theme ? (model.isActive ? rootScope.theme.theme_primary : rootScope.theme.theme_fg) : "#ffffff"; Layout.fillWidth: true; elide: Text.ElideRight }
-                            Text { text: model.secured ? "lock" : ""; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff" }
-                            Text { text: model.bars; font.family: "Rubik"; font.pixelSize: 11; color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff" }
+                            anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10; spacing: 8
+                            Text {
+                                text: model.sigIcon
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                color: rootScope.theme ? (model.isActive ? rootScope.theme.theme_primary : rootScope.theme.theme_fg) : "#ffffff"
+                            }
+                            Text {
+                                text: model.ssidName
+                                font.family: "Rubik"
+                                font.pixelSize: 12
+                                font.weight: model.isActive ? Font.Bold : Font.Normal
+                                color: rootScope.theme ? (model.isActive ? rootScope.theme.theme_primary : rootScope.theme.theme_fg) : "#ffffff"
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                text: model.secured ? "lock" : ""
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff"
+                            }
+                            Text {
+                                text: model.bars
+                                font.family: "Rubik"
+                                font.pixelSize: 10
+                                color: rootScope.theme ? rootScope.theme.theme_outline : "#59ffffff"
+                            }
                         }
                         MouseArea {
                             id: itemMouseArea; anchors.fill: parent; hoverEnabled: true

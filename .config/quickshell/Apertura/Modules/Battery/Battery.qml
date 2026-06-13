@@ -134,9 +134,8 @@ Item {
             Text {
                 id: batteryIcon
                 Layout.alignment: Qt.AlignHCenter
-                
-                text: batteryMouseArea.containsMouse ? batRoot.capacity + "%" : (
-                    batRoot.isCharging        ? "battery_android_frame_bolt" : 
+
+                text: batteryMouseArea.containsMouse ? (batRoot.isCharging ? "⚡" : "") + batRoot.capacity + "%" : (
                     batRoot.capacity >= 95    ? "battery_android_full" :
                     batRoot.capacity < 15     ? "battery_android_0" :
                     batRoot.capacity < 30     ? "battery_android_1" : 
@@ -146,11 +145,11 @@ Item {
                     batRoot.capacity < 90     ? "battery_android_5" : 
                                                 "battery_android_6"
                 )
-                                                    
+
                 font.family: batteryMouseArea.containsMouse ? "Rubik" : "Material Symbols Outlined" 
-                font.pixelSize: batteryMouseArea.containsMouse ? 12 : 20
+                font.pixelSize: batteryMouseArea.containsMouse ? 11 : 20
                 font.weight: batteryMouseArea.containsMouse ? Font.Bold : Font.Normal
-                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                color: batRoot.isCharging ? "#a6e3a1" : (rootScope.theme ? rootScope.theme.theme_fg : "#ffffff")
                 horizontalAlignment: Text.AlignHCenter
             }
         }
@@ -226,8 +225,7 @@ Item {
                     RowLayout {
                         spacing: 6
                         Text {
-                            text: batRoot.isCharging        ? "battery_android_frame_bolt" : 
-                                  batRoot.capacity >= 95    ? "battery_android_full" :
+                            text: batRoot.capacity >= 95    ? "battery_android_full" :
                                   batRoot.capacity < 15     ? "battery_android_0" :
                                   batRoot.capacity < 30     ? "battery_android_1" : 
                                   batRoot.capacity < 45     ? "battery_android_2" : 
@@ -237,7 +235,7 @@ Item {
                                                               "battery_android_6"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 20
-                            color: rootScope.theme ? rootScope.theme.theme_primary : "#ffffff"
+                            color: batRoot.isCharging ? "#a6e3a1" : (rootScope.theme ? rootScope.theme.theme_primary : "#ffffff")
                         }
                         Text { 
                             text: batRoot.capacity + "%"

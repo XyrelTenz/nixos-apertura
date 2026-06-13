@@ -11,6 +11,7 @@ Item {
     property int drawerWidth: 300 
     property string modalToken: ""
     property bool anchorTop: true
+    property bool anchorRight: false
     
     property alias contentItem: drawerContent
 
@@ -51,7 +52,7 @@ Item {
             height: drawerRoot.drawerHeight
             color: "#9911111b"
             clip: true
-            x: 0
+            x: drawerRoot.anchorRight ? (drawerOverlayWindow.width - drawerRoot.drawerWidth - 12) : 0
             y: {
                 if (drawerRoot.anchorTop) {
                     return 12;
@@ -75,7 +76,7 @@ Item {
                     PropertyChanges { 
                         target: drawerContent
                         opacity: 1.0
-                        x: 0
+                        x: drawerRoot.anchorRight ? (drawerOverlayWindow.width - drawerRoot.drawerWidth - 12) : 0
                     }
                 },
                 State {
@@ -84,7 +85,7 @@ Item {
                     PropertyChanges { 
                         target: drawerContent
                         opacity: 0.0
-                        x: -drawerRoot.drawerWidth
+                        x: drawerRoot.anchorRight ? drawerOverlayWindow.width : -drawerRoot.drawerWidth
                     }
                 }
             ]
