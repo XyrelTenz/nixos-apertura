@@ -31,7 +31,7 @@ Item {
 
     PanelWindow {
         id: drawerOverlayWindow
-        visible: drawerRoot.isOpen || drawerRoot._animatingClosed
+        visible: (drawerRoot.isOpen || drawerRoot._animatingClosed) && !(typeof rootScope !== 'undefined' && rootScope.screenshotMode)
 
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "quickshell-overlay"

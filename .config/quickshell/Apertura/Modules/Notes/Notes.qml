@@ -917,6 +917,7 @@ Item {
 
         PanelWindow {
             id: detachedWin
+            visible: !(typeof rootScope !== 'undefined' && rootScope.screenshotMode)
             WlrLayershell.layer: isAlwaysVisibleState ? WlrLayer.Overlay : WlrLayer.Bottom
             WlrLayershell.namespace: "quickshell-detached-note"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
@@ -1035,7 +1036,7 @@ Item {
 
     PanelWindow {
         id: notesOverlayModal
-        visible: !notesRoot.isDetachedElsewhere && (notesRoot.menuOpen || notesRoot.isAlwaysVisible)
+        visible: !notesRoot.isDetachedElsewhere && (notesRoot.menuOpen || notesRoot.isAlwaysVisible) && !(typeof rootScope !== 'undefined' && rootScope.screenshotMode)
         color: "transparent"
         anchors {
             left: true

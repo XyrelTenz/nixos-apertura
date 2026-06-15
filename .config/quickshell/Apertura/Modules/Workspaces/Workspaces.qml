@@ -26,14 +26,15 @@ Item {
             onTextChanged: {
                 try {
                     const cleaned = text.trim();
-                    if (!cleaned) return;
+                    if (!cleaned)
+                        return;
                     const json = JSON.parse(cleaned);
                     if (Array.isArray(json)) {
                         let ids = json.map(ws => ws.id).filter(id => id > 0);
                         let occupied = {};
                         let specialHasWindows = false;
 
-                        json.forEach(ws => { 
+                        json.forEach(ws => {
                             if (ws.windows > 0) {
                                 if (ws.id > 0) {
                                     occupied[ws.id] = true;
@@ -42,26 +43,31 @@ Item {
                                 }
                             }
                         });
-                        
+
                         workspaceContainer.occupiedMap = occupied;
                         workspaceContainer.isSpecialOccupied = specialHasWindows;
 
-                        if (!ids.includes(1)) ids.push(1);
-                        if (!ids.includes(workspaceContainer.activeWorkspace)) ids.push(workspaceContainer.activeWorkspace);
+                        if (!ids.includes(1))
+                            ids.push(1);
+                        if (!ids.includes(workspaceContainer.activeWorkspace))
+                            ids.push(workspaceContainer.activeWorkspace);
 
                         let maxId = Math.max(...ids, 0);
-                        if (!ids.includes(maxId + 1)) ids.push(maxId + 1);
+                        if (!ids.includes(maxId + 1))
+                            ids.push(maxId + 1);
 
                         for (let i = 1; i <= maxId + 1; i++) {
-                            if (!ids.includes(i)) ids.push(i);
+                            if (!ids.includes(i))
+                                ids.push(i);
                         }
 
                         ids.sort((a, b) => a - b);
-                        
+
                         if (workspaceContainer.isSpecialOccupied || workspaceContainer.isSpecialActive) {
-                            if (!ids.includes(-99)) ids.push(-99);
+                            if (!ids.includes(-99))
+                                ids.push(-99);
                         }
-                        
+
                         workspaceContainer.activeWorkspaceList = ids;
                     }
                 } catch (e) {}
@@ -77,7 +83,8 @@ Item {
             onTextChanged: {
                 try {
                     const cleaned = text.trim();
-                    if (!cleaned) return;
+                    if (!cleaned)
+                        return;
                     const json = JSON.parse(cleaned);
                     if (json && json.id !== undefined) {
                         workspaceContainer.activeWorkspace = json.id;
@@ -97,7 +104,8 @@ Item {
             onTextChanged: {
                 try {
                     const cleaned = text.trim();
-                    if (!cleaned) return;
+                    if (!cleaned)
+                        return;
                     const json = JSON.parse(cleaned);
                     if (Array.isArray(json)) {
                         let foundActive = false;
@@ -137,9 +145,7 @@ Item {
     Connections {
         target: workspaceContainer
         function onThemeChanged() {
-            layoutLoader.sourceComponent = workspaceContainer.isVertical
-                ? verticalLayoutComponent
-                : horizontalLayoutComponent
+            layoutLoader.sourceComponent = workspaceContainer.isVertical ? verticalLayoutComponent : horizontalLayoutComponent;
         }
     }
 
@@ -185,11 +191,22 @@ Item {
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: true
 
-            Behavior on targetWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on targetHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on targetWidth {
+                NumberAnimation {
+                    duration: 200
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on targetHeight {
+                NumberAnimation {
+                    duration: 200
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             onEntered: {
-                if (isSpecialNode) return;
+                if (isSpecialNode)
+                    return;
                 if (typeof mainBarWindow !== "undefined" && mainBarWindow.previewPopup && isOccupied) {
                     let globalCoords = workspaceButton.mapToItem(null, 0, 0);
                     let popup = mainBarWindow.previewPopup;
@@ -198,9 +215,10 @@ Item {
                         popup.screen = mainBarWindow.screen;
                         popup.marginLeft = mainBarWindow.x + mainBarWindow.width + 13;
                         popup.marginTop = globalCoords.y - (200 / 2) + (workspaceButton.height / 2);
-                        
-                        Qt.callLater(function() {
-                            if (popup) popup.targetWorkspace = wsId;
+
+                        Qt.callLater(function () {
+                            if (popup)
+                                popup.targetWorkspace = wsId;
                         });
                     }
                 }
@@ -221,7 +239,10 @@ Item {
                 switchWorkspace.running = true;
             }
 
-            Process { id: switchWorkspace; running: false }
+            Process {
+                id: switchWorkspace
+                running: false
+            }
 
             Rectangle {
                 id: hoverBackground
@@ -238,31 +259,43 @@ Item {
                 id: indicatorShape
                 anchors.centerIn: parent
                 visible: !isSpecialNode
-                
+
                 property int shapeWidth: workspaceContainer.isVertical ? (workspaceButton.isActive ? 14 : 12) : (workspaceButton.isActive ? 44 : 12)
                 property int shapeHeight: workspaceContainer.isVertical ? (workspaceButton.isActive ? 44 : 12) : (workspaceButton.isActive ? 14 : 12)
-                
+
                 width: shapeWidth
                 height: shapeHeight
                 radius: 8
                 z: 2
 
-                Behavior on shapeWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                Behavior on shapeHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                Behavior on shapeWidth {
+                    NumberAnimation {
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
+                Behavior on shapeHeight {
+                    NumberAnimation {
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
 
                 color: {
-                    if (!workspaceContainer.theme) return "transparent";
-                    if (workspaceButton.isActive) return workspaceContainer.theme.theme_primary;
-                    if (workspaceButton.isOccupied) return workspaceContainer.theme.theme_fg;
+                    if (!workspaceContainer.theme)
+                        return "transparent";
+                    if (workspaceButton.isActive)
+                        return workspaceContainer.theme.theme_primary;
+                    if (workspaceButton.isOccupied)
+                        return workspaceContainer.theme.theme_fg;
                     return "transparent";
                 }
 
                 border.width: (!workspaceButton.isActive && !workspaceButton.isOccupied) ? 1.5 : 0
                 border.color: {
-                    if (!workspaceContainer.theme) return "transparent";
-                    return (!workspaceButton.isActive && !workspaceButton.isOccupied)
-                        ? workspaceContainer.theme.theme_outline
-                        : "transparent";
+                    if (!workspaceContainer.theme)
+                        return "transparent";
+                    return (!workspaceButton.isActive && !workspaceButton.isOccupied) ? workspaceContainer.theme.theme_outline : "transparent";
                 }
 
                 Text {
@@ -273,15 +306,18 @@ Item {
                     font.family: "Rubik"
                     font.pixelSize: 11
                     font.bold: true
-                    
+
                     color: {
-                        if (!workspaceContainer.theme) return "#ffffff";
-                        return workspaceButton.isActive
-                            ? workspaceContainer.theme.theme_onPrimary
-                            : workspaceContainer.theme.theme_fg;
+                        if (!workspaceContainer.theme)
+                            return "#ffffff";
+                        return workspaceButton.isActive ? workspaceContainer.theme.theme_onPrimary : workspaceContainer.theme.theme_fg;
                     }
                     opacity: workspaceButton.isActive ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 150
+                        }
+                    }
                 }
             }
 
@@ -290,19 +326,18 @@ Item {
                 visible: isSpecialNode
                 anchors.centerIn: parent
                 text: "star"
-                
+
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 16
                 font.bold: true
                 z: 2
-                
+
                 font.letterSpacing: workspaceButton.isActive ? 0.01 : 0.0
-                
+
                 color: {
-                    if (!workspaceContainer.theme) return workspaceButton.isActive ? "#f5c2e7" : "#ffffff";
-                    return workspaceButton.isActive 
-                        ? workspaceContainer.theme.theme_primary 
-                        : workspaceContainer.theme.theme_fg;
+                    if (!workspaceContainer.theme)
+                        return workspaceButton.isActive ? "#f5c2e7" : "#ffffff";
+                    return workspaceButton.isActive ? workspaceContainer.theme.theme_primary : workspaceContainer.theme.theme_fg;
                 }
             }
         }

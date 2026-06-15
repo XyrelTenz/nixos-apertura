@@ -12,6 +12,7 @@ Item {
     implicitHeight: 32
 
     property bool menuOpen: false
+    property bool active: false
 
     property int cpuPercent: 0
     property int cpuTemp: 0
@@ -77,7 +78,7 @@ Item {
 
     Process {
         id: metricsFetcher
-        command: ["sh", "-c", "raw_temp=$(cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); temp=$((raw_temp / 1000)); while read -r m v _; do case \"$m\" in MemTotal:) t=$v ;; MemAvailable:) a=$v ;; esac; done < /proc/meminfo; read -r _ u n s i iw irq sof _ < /proc/stat; total=$((u + n + s + i + iw + irq + sof)); idle=$((i + iw)); df_out=$(df -h / | tail -n 1 | awk '{ u_val=$3; t_val=$2; sub(/[GGMK]/,\"\",u_val); sub(/[GGMK]/,\"\",t_val); print u_val\" \"t_val\" \"$5}'); g_busy=\"none\"; g_temp=0; if command -v nvidia-smi >/dev/null 2>&1; then nv_out=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null); g_busy=$(echo \"$nv_out\" | awk -F', ' '{print $1}'); g_temp=$(echo \"$nv_out\" | awk -F', ' '{print $2}'); else for card in /sys/class/drm/card*/device; do if [ -f \"$card/gpu_busy_percent\" ]; then cur_b=$(cat \"$card/gpu_busy_percent\" 2>/dev/null); if [ \"$g_busy\" = \"none\" ] || [ \"$cur_b\" -gt \"$g_busy\" ]; then g_busy=$cur_b; fi; hw_t=$(cat $card/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); [ ! -z \"$hw_t\" ] && g_temp=$((hw_t / 1000)); fi; done; fi; echo \"$total $idle $temp $a $t $df_out $g_busy $g_temp\""]
+        command: ["sh", "-c", "raw_temp=$(cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); temp=$((raw_temp / 1000)); while read -r m v _; do case \"$m\" in MemTotal:) t=$v ;; MemAvailable:) a=$v ;; esac; done < /proc/meminfo; read -r _ u n s i iw irq sof _ < /proc/stat; total=$((u + n + s + i + iw + irq + sof)); idle=$((i + iw)); df_out=$(df -h /home | tail -n 1 | awk '{ u_val=$3; t_val=$2; sub(/[GGMK]/,\"\",u_val); sub(/[GGMK]/,\"\",t_val); print u_val\" \"t_val\" \"$5}'); g_busy=\"none\"; g_temp=0; if command -v nvidia-smi >/dev/null 2>&1; then nv_out=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null); g_busy=$(echo \"$nv_out\" | awk -F', ' '{print $1}'); g_temp=$(echo \"$nv_out\" | awk -F', ' '{print $2}'); else for card in /sys/class/drm/card*/device; do if [ -f \"$card/gpu_busy_percent\" ]; then cur_b=$(cat \"$card/gpu_busy_percent\" 2>/dev/null); if [ \"$g_busy\" = \"none\" ] || [ \"$cur_b\" -gt \"$g_busy\" ]; then g_busy=$cur_b; fi; hw_t=$(cat $card/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); [ ! -z \"$hw_t\" ] && g_temp=$((hw_t / 1000)); fi; done; fi; echo \"$total $idle $temp $a $t $df_out $g_busy $g_temp\""]
         running: false
 
         stdout: StdioCollector {
@@ -164,7 +165,7 @@ Item {
     Timer {
         id: metricsTicker
         interval: 1000
-        running: drawerTemplate.isOpen
+        running: drawerTemplate.isOpen || monitorRoot.active
         repeat: true
         triggeredOnStart: true
         onTriggered: {

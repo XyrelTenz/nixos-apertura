@@ -69,16 +69,19 @@
     grim
     slurp
     satty
+    hyprpicker
+    wl-clipboard
     cava
     matugen
     awww
+    brightnessctl
     (symlinkJoin {
       name = "quickshell-wrapped";
       paths = [quickshell];
       nativeBuildInputs = [makeWrapper];
       postBuild = ''
         wrapProgram $out/bin/qs \
-          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugen awww cava bash]}" \
+          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugen awww cava bash brightnessctl grim slurp satty hyprpicker wl-clipboard]}" \
           --prefix QML2_IMPORT_PATH : "${kdePackages.qt5compat}/lib/qt-6/qml" \
           --prefix QT_PLUGIN_PATH : "${kdePackages.qtimageformats}/lib/qt-6/plugins"
       '';

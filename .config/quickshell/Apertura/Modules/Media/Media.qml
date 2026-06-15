@@ -8,30 +8,48 @@ Item {
     width: 32
     height: 32
 
-    readonly property var activePlayer: {
+    property var activePlayer: null
+
+    function updateActivePlayer() {
         let playersList = Mpris.players.values;
-        if (!playersList || playersList.length === 0) return null;
-        
+        if (!playersList || playersList.length === 0) {
+            activePlayer = null;
+            return;
+        }
+
+        // 1. If any player is actively playing, set it as active
         for (let i = 0; i < playersList.length; i++) {
-            let currentPlayer = playersList[i];
-            if (currentPlayer && currentPlayer.playbackState === MprisPlaybackState.Playing) {
-                return currentPlayer;
+            let p = playersList[i];
+            if (p && p.playbackState === MprisPlaybackState.Playing) {
+                activePlayer = p;
+                return;
             }
         }
-        return playersList[0];
+
+        // 2. If the current activePlayer is still available in the list, keep it
+        if (activePlayer) {
+            for (let i = 0; i < playersList.length; i++) {
+                if (playersList[i] === activePlayer) {
+                    return;
+                }
+            }
+        }
+
+        // 3. Fallback to the first player in the list
+        activePlayer = playersList[0];
+    }
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: mediaControlRoot.updateActivePlayer()
     }
     
     function togglePlayback() {
-        if (!activePlayer) return;
-        
-        if (activePlayer.playbackState === MprisPlaybackState.Playing) {
-            if (activePlayer.canPause) {
-                activePlayer.pause();
-            }
-        } else {
-            if (activePlayer.canPlay) {
-                activePlayer.play();
-            }
+        if (activePlayer) {
+            activePlayer.playPause();
         }
     }
 

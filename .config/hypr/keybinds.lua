@@ -49,13 +49,9 @@ end
 hl.bind(mainMod .. " + S", hl.dsp.workspace.toggle_special("magic"))
 hl.bind(mainMod .. " + CTRL + " .. "S", hl.dsp.window.move({ workspace = "special:magic" }))
 
--- Screenshot Hotkey with wl-copy / nix-shell fallback
-hl.bind(
-	mainMod .. " + SHIFT + S",
-	hl.dsp.exec_cmd(
-		'bash -c \'if command -v wl-copy &>/dev/null; then grim -g "$(slurp)" - | wl-copy; else nix-shell -p wl-clipboard --run "grim -g \\"$(slurp)\\" - | wl-copy"; fi\''
-	)
-)
+-- Screenshot Hotkeys (exec directly — do NOT route through Quickshell IPC)
+-- Running slurp as a Quickshell child process freezes the shell (seat grab conflict)
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("bash ~/.config/quickshell/Apertura/Scripts/screenshot.sh"))
 
 -- Mouse workspace scroll
 hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))

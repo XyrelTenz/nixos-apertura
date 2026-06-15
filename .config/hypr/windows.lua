@@ -45,7 +45,6 @@ hl.window_rule({
 	},
 	float = true,
 })
-
 ---------------------
 ---- LAYER RULES ----
 ---------------------
@@ -56,13 +55,14 @@ hl.layer_rule({
 	match = { namespace = "quickshell-bar" },
 	blur = true,
 	xray = true,
+	ignore_alpha = 0.5,
 })
 
 -- Blur and XRay for Quickshell Drawers & Components
 hl.layer_rule({
 	name = "quickshell-components-blur",
 	match = {
-		namespace = "^(quickshell-(overlay|wallpapers|launcher|workspace-preview|detached-note)|desktop-clock-widget)$",
+		namespace = "^(quickshell-(overlay|wallpapers|launcher|workspace-preview|detached-note)|desktop-clock-widget|desktop-cava-widget)$",
 	},
 	blur = true,
 	xray = true,

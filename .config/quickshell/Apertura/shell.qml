@@ -6,39 +6,69 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Services.Notifications
 import "."
 import "Modules/AppLauncher"
-import "Modules/Audio"
 import "Modules/Battery"
-import "Modules/Bluetooth"
+import "Modules/ControlCenter"
 import "Modules/Calendar"
 import "Modules/Cava"
 import "Modules/Media"
 import "Modules/NetMonitor"
 import "Modules/Notes"
 import "Modules/Notification"
-import "Modules/Power"
 import "Modules/ScreenRecord"
 import "Modules/SysMonitor"
 import "Modules/Wallpaper"
-import "Modules/Wifi"
 import "Modules/Workspaces"
 
 import "Widgets/DesktopClock"
 import "Widgets/VolumeHud"
 import "Widgets/WorkspacePreview"
+import "Widgets/DesktopCava"
 
 Scope {
     id: rootScope
 
+    /** @property var configurationAsset: References external localized configuration values */
     property var configurationAsset: Config
 
+    /** @property alias theme: Exposes global Canvas/UI styling metrics to submodules */
     property alias theme: theme 
 
+    /** @property var sharedPinnedApps: Holds application configurations pinned inside the launcher view */
     property var sharedPinnedApps: []
+
+    /** @property var activeModal: Tracks currently active modal context name to ensure singular overlay states */
+    property var activeModal: null
+    
+    /** @property bool audioSliderActive: Flag preventing focus drops when interacting with audio overlays */
+    property bool audioSliderActive: false
+    
+    /** @property var instantiatedBars: Dictionary mapping screen name keys to instantiated PanelWindow configurations */
+    property var instantiatedBars: ({})
+    
+    /** @property bool sessionLocked: Flag indicating if the compositor layer is locked */
+    property bool sessionLocked: false
+
+    /** @property var notificationItem: Global reference pointer to the underlying Notification visual server element */
+    property var notificationItem: null
+    
+    /** @property var sysMonitorItem: Global reference pointer to the hardware telemetry analyzer instance */
+    property var sysMonitorItem: null
+    
+    /** @property bool notificationsEnabled: Global toggle for filtering and routing desktop notification servers */
+    property bool notificationsEnabled: true
 
     Theme { id: theme }
 
+    // IO & System Data Services
+
+    /**
+     * @fileView pinCacheReader
+     * Parses the persistent system launcher configurations.
+     * Evaluates local application layout configurations reactively on file changes.
+     */
     FileView {
         id: pinCacheReader
         path: Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
@@ -59,14 +89,49 @@ Scope {
         pinCacheReader.reload();
     }
 
-    property var activeModal: null
-    property bool audioSliderActive: false
-    property var instantiatedBars: ({})
-    property bool sessionLocked: false
+    /**
+     * @notificationServer globalNotificationServer
+     * Connects directly with the host system DBus service pipeline to trap inbound desktop notifications.
+     */
+    NotificationServer {
+        id: globalNotificationServer
+        bodySupported: true
+        actionsSupported: true
+        keepOnReload: true
+    }
 
+    ControlCenter {
+        id: controlCenterItem
+        notificationItem: rootScope.notificationItem
+        sysMonitorItem: rootScope.sysMonitorItem
+    }
+
+    CavaService {
+        id: cavaService
+    }
+
+    Notification {
+        id: notificationItem
+        width: 0
+        height: 0
+        Component.onCompleted: rootScope.notificationItem = this
+    }
+
+    /**
+     * @function requestOpen
+     * @param {string} modalName - Global routing tracker to map modal active focal states.
+     */
     function requestOpen(modalName) { activeModal = modalName; }
+    
+    /** @function dismissAll: Utility wrapper resetting focal states down across modular sub-containers */
     function dismissAll() { activeModal = null; }
 
+    /**
+     * @function checkIsVertical
+     * @param {int} wsId - Workspace Identifier index.
+     * Evaluates screen dimensional aspect configurations dynamically to track rotated/vertical orientation arrays.
+     * @returns {bool} True if physical monitor scale target maps vertically.
+     */
     function checkIsVertical(wsId) {
         let targetWsObj = Hyprland.workspaces.values.find(ws => ws.id === wsId);
         let monitorObj = targetWsObj ? targetWsObj.monitor : (Hyprland.activeMonitor || null);
@@ -77,6 +142,12 @@ Scope {
         return wsId >= 10;
     }
 
+    // Desktop Floating Overlay Windows
+
+    /**
+     * @panelWindow globalWorkspacePreview
+     * Renders a floating window preview layer when cycling through virtual desktop workspace scopes.
+     */
     PanelWindow {
         id: globalWorkspacePreview
         
@@ -90,13 +161,8 @@ Scope {
         property int marginLeft: 0
         property int marginTop: 0
 
-        function requestDismiss() {
-            dismissTimer.restart();
-        }
-
-        function cancelDismiss() {
-            dismissTimer.stop();
-        }
+        function requestDismiss() { dismissTimer.restart(); }
+        function cancelDismiss() { dismissTimer.stop(); }
 
         Timer {
             id: dismissTimer
@@ -113,7 +179,6 @@ Scope {
 
         implicitWidth: previewEngine.implicitWidth
         implicitHeight: previewEngine.implicitHeight
-
         color: "transparent"
 
         MouseArea {
@@ -129,23 +194,17 @@ Scope {
                 id: popupCard
                 width: parent.width
                 height: parent.height
-                color: "#9911111b"
+                color: "#9911111b" 
                 clip: true
 
                 states: [
                     State {
                         name: "visible"; when: previewEngine.active
-                        PropertyChanges { 
-                            target: popupCard; 
-                            opacity: 1.0 
-                        }
+                        PropertyChanges { target: popupCard; opacity: 1.0 }
                     },
                     State {
                         name: "hidden"; when: !previewEngine.active
-                        PropertyChanges { 
-                            target: popupCard; 
-                            opacity: 0.0 
-                        }
+                        PropertyChanges { target: popupCard; opacity: 0.0 }
                     }
                 ]
 
@@ -163,10 +222,8 @@ Scope {
                 Flickable {
                     id: scrollViewport
                     anchors.fill: parent
-                    
                     contentWidth: previewEngine.implicitWidth
                     contentHeight: previewEngine.implicitHeight
-                    
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
                     clip: true
@@ -182,6 +239,8 @@ Scope {
         }
     }
 
+    // Compositor & IPC Event Signal Hooks
+
     Connections {
         target: Hyprland
         ignoreUnknownSignals: true
@@ -195,7 +254,7 @@ Scope {
                     
                     let activeMonitorObj = Hyprland.activeMonitor;
                     if (activeMonitorObj) {
-                        globalWorkspacePreview.marginLeft = 54 + 12;
+                        globalWorkspacePreview.marginLeft = 54 + 12; 
                         globalWorkspacePreview.marginTop = Math.round((activeMonitorObj.height - (checkIsVertical(currentWsId) ? 700 : 300)) / 2);
                     }
                     globalWorkspacePreview.requestDismiss();
@@ -269,9 +328,14 @@ Scope {
                 screen: modelData
             }
 
+            DesktopCava {
+                screen: modelData
+            }
+
             PanelWindow {
                 id: mainBarWindow
                 property string screenKey: modelData.name
+                visible: true
 
                 Component.onCompleted: { rootScope.instantiatedBars[screenKey] = mainBarWindow; }
                 Component.onDestruction: { delete rootScope.instantiatedBars[screenKey]; }
@@ -314,7 +378,6 @@ Scope {
                         anchors.bottomMargin: 16
                         spacing: 0
 
-                        // === Top Section (fixed content) ===
                         Column {
                             id: topStackColumn
                             Layout.fillWidth: true
@@ -342,15 +405,13 @@ Scope {
                             }
                         }
 
-                        // === Spacer pushes bottom section down ===
                         Item { Layout.fillHeight: true }
 
-                        // === Bottom Section (scrollable when overflow) ===
                         ColumnLayout {
                             id: bottomGroupControls
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.maximumHeight: parent.height - topStackColumn.height - 16
+                            Layout.maximumHeight: parent.height - topStackColumn.height - 96
                             spacing: 8 
                             property bool isExpanded: false
 
@@ -384,11 +445,9 @@ Scope {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    onClicked: (mouse) => {
-                                        if (mouse.button === Qt.LeftButton) {
-                                            bottomGroupControls.isExpanded = !bottomGroupControls.isExpanded
-                                        }
+                                    acceptedButtons: Qt.LeftButton
+                                    onClicked: {
+                                        bottomGroupControls.isExpanded = !bottomGroupControls.isExpanded;
                                     }
                                 }
                             }
@@ -410,6 +469,11 @@ Scope {
                                     width: bottomModulesFlickable.width
                                     spacing: 8
 
+                                    /**
+                                     * @component DrawerModule
+                                     * Rewritten to derive from Loader. This separates the layout engine 
+                                     * constraints from the target execution block cleanly.
+                                     */
                                     component DrawerModule : Item {
                                         id: moduleWrapper
                                         property bool isPinned: false
@@ -464,71 +528,72 @@ Scope {
                                     }
 
                                     DrawerModule {
-                                        id: wrapWifi
-                                        moduleAvailable: wifiItem.hasWifiCard
-                                        Wifi { id: wifiItem; anchors.centerIn: parent }
-                                    }
-
-                                    DrawerModule {
                                         id: wrapBattery
                                         moduleAvailable: batteryItem.isLaptop
                                         Battery { id: batteryItem; anchors.centerIn: parent }
-                                    }
-
-                                    DrawerModule {
-                                        id: wrapSnip
-                                        Rectangle {
-                                            id: screensnipButton
-                                            width: 32
-                                            height: 32
-                                            anchors.centerIn: parent
-                                            color: "transparent"
-                                            radius: 0
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "screenshot_region"
-                                                font.family: "Material Symbols Outlined"
-                                                font.pixelSize: 22
-                                                color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
-                                            }
-
-                                            Rectangle {
-                                                id: snipHoverOverlay
-                                                anchors.fill: parent
-                                                radius: 0
-                                                color: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa"
-                                                opacity: snipMouseArea.containsMouse ? 0.3 : 0.0
-                                                z: 1
-                                            }
-
-                                            MouseArea {
-                                                id: snipMouseArea
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    Quickshell.execDetached([
-                                                        "bash", "-c", 
-                                                        "mkdir -p ~/Pictures/Screenshots && FILE=~/Pictures/Screenshots/screenshot_$(date +%Y%m%d_%H%M%S).png && grim -g \"$(slurp)\" \"$FILE\" && (if command -v wl-copy &>/dev/null; then wl-copy -t image/png < \"$FILE\"; else nix-shell -p wl-clipboard --run \"wl-copy -t image/png < \\\"$FILE\\\"\"; fi) &> ~/.cache/screenshot.log"
-                                                    ]);
-                                                }
-                                            }
-                                        }
                                     }
 
                                     DrawerModule { 
                                         id: wrapMedia
                                         Media { id: mediaItem; anchors.centerIn: parent } 
                                     }
+                                    
                                     DrawerModule { id: wrapNotes; Notes { id: notesItem; anchors.centerIn: parent } }
-                                    DrawerModule { id: wrapNotif; Notification { anchors.centerIn: parent } }
-                                    DrawerModule { id: wrapBlue; Bluetooth { anchors.centerIn: parent } }
-                                    DrawerModule { id: wrapAudio; Audio { anchors.centerIn: parent } }
-                                    DrawerModule { id: wrapSys; SysMonitor { id: sysMonitorItem; theme: rootScope.theme; anchors.centerIn: parent } }
+                                    
+                                    DrawerModule { 
+                                        id: wrapSys
+                                        SysMonitor { 
+                                            id: sysMonitorItem
+                                            theme: rootScope.theme
+                                            anchors.centerIn: parent
+                                            active: controlCenterItem.menuOpen
+                                            Component.onCompleted: rootScope.sysMonitorItem = this 
+                                        } 
+                                    }
+                                    
                                     DrawerModule { id: wrapNet; NetMonitor { id: netMonitorItem; anchors.centerIn: parent } }
+                                    
                                     DrawerModule { id: wrapRecord; ScreenRecord { id: screenRecordItem; anchors.centerIn: parent } }
-                                    DrawerModule { id: wrapPower; Power { anchors.centerIn: parent } }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: 8
+                            spacing: 8
+
+                            Rectangle {
+                                id: fixedSettingsBtn
+                                Layout.preferredWidth: 32
+                                Layout.preferredHeight: 32
+                                Layout.alignment: Qt.AlignHCenter
+                                color: "transparent"
+                                radius: 0
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "settings"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 22
+                                    color: rootScope.theme ? rootScope.theme.theme_fg : "#ffffff"
+                                }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 0
+                                    color: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa"
+                                    opacity: fixedSettingsMouseArea.containsMouse ? 0.3 : 0.0
+                                    z: 1
+                                }
+
+                                MouseArea {
+                                    id: fixedSettingsMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: controlCenterItem.toggleMenu()
                                 }
                             }
                         }

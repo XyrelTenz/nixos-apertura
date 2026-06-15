@@ -15,7 +15,9 @@ Item {
     property var visibleBanners: []
     property var activeHistoryReferences: []
     property bool menuOpen: false
-    property bool notificationsEnabled: true
+    property bool notificationsEnabled: rootScope.notificationsEnabled
+    property var server: rootScope.globalNotificationServer
+    property var nativeServer: server
 
     property color primaryColor: rootScope.theme ? rootScope.theme.theme_primary : "#89b4fa"
     property color fgColor: rootScope.theme ? rootScope.theme.theme_fg : "#cdd6f4"
@@ -56,13 +58,9 @@ Item {
         }
     }
 
-    NotificationServer {
-        id: nativeServer
-        bodySupported: true
-        actionsSupported: true
-        keepOnReload: true
-
-        onNotification: notification => {
+    Connections {
+        target: notificationRoot.server
+        function onNotification(notification) {
             if (!notificationRoot.notificationsEnabled) {
                 notification.dismiss();
                 return;
@@ -70,7 +68,9 @@ Item {
 
             notification.tracked = true;
             notificationRoot.updateCount();
-            notificationRoot.activeHistoryReferences = [...notificationRoot.activeHistoryReferences, notification];
+            if (!notificationRoot.activeHistoryReferences.includes(notification)) {
+                notificationRoot.activeHistoryReferences = [...notificationRoot.activeHistoryReferences, notification];
+            }
             notificationRoot.visibleBanners = [...notificationRoot.visibleBanners, notification];
 
             let toastTimer = Qt.createQmlObject('import QtQuick; Timer { interval: 5000; running: true; repeat: true }', notificationRoot);
@@ -101,7 +101,6 @@ Item {
         }
     }
 
-    // ── Tray icon ─────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         color: "transparent"
@@ -166,7 +165,7 @@ Item {
 
     PanelWindow {
         id: popupToastWindow
-        visible: notificationRoot.visibleBanners.length > 0 && !drawerTemplate.isOpen && notificationRoot.notificationsEnabled
+        visible: notificationRoot.visibleBanners.length > 0 && !drawerTemplate.isOpen && notificationRoot.notificationsEnabled && !(typeof rootScope !== 'undefined' && rootScope.screenshotMode)
         color: "transparent"
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -235,21 +234,12 @@ Item {
                 delegate: Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: toastContent.implicitHeight + 24
-                    color: "#ee11111b"
-                    border.color: "#20ffffff"
+                    color: "#ee24273a"
+                    border.color: Qt.rgba(1, 1, 1, 0.05)
                     border.width: 1
-                    radius: 0
+                    radius: 16
 
                     property bool isHovered: toastMouseArea.containsMouse
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        width: 2
-                        color: notificationRoot.primaryColor
-                        opacity: 0.8
-                    }
 
                     ColumnLayout {
                         id: toastContent
@@ -257,76 +247,107 @@ Item {
                             left: parent.left
                             leftMargin: 14
                             right: parent.right
-                            rightMargin: 12
+                            rightMargin: 14
                             top: parent.top
                             topMargin: 12
+                            bottom: parent.bottom
+                            bottomMargin: 12
                         }
-                        spacing: 5
+                        spacing: 8
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: 10
 
                             Rectangle {
-                                width: 16
-                                height: 16
-                                radius: 0
-                                color: Qt.rgba(notificationRoot.primaryColor.r, notificationRoot.primaryColor.g, notificationRoot.primaryColor.b, 0.15)
+                                width: 32
+                                height: 32
+                                radius: 16
+                                color: Qt.rgba(255, 255, 255, 0.05)
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: "notifications"
                                     font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 10
+                                    font.pixelSize: 14
                                     color: notificationRoot.primaryColor
                                 }
                             }
 
-                            Text {
-                                text: (modelData.appName || "Notification").toUpperCase()
-                                font.family: "Rubik"
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
-                                color: notificationRoot.primaryColor
+                            ColumnLayout {
+                                spacing: 1
                                 Layout.fillWidth: true
-                                elide: Text.ElideRight
+
+                                Text {
+                                    text: modelData.appName || "Notification"
+                                    font.family: "Rubik"
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                    color: "#cdd6f4"
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: "Just now"
+                                    font.family: "Rubik"
+                                    font.pixelSize: 10
+                                    color: "#a6adc8"
+                                }
                             }
 
                             Text {
                                 text: "close"
                                 font.family: "Material Symbols Outlined"
-                                font.pixelSize: 12
-                                color: "#40ffffff"
+                                font.pixelSize: 14
+                                color: "#80ffffff"
                             }
                         }
 
-                        Rectangle {
+                        RowLayout {
                             Layout.fillWidth: true
-                            height: 1
-                            color: "#10ffffff"
-                        }
+                            spacing: 10
+                            Layout.topMargin: 2
+                            Layout.leftMargin: 2
 
-                        Text {
-                            text: modelData.summary
-                            font.family: "Rubik"
-                            font.pixelSize: 13
-                            font.weight: Font.SemiBold
-                            color: "#f0ffffff"
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
+                            Rectangle {
+                                width: 3
+                                height: summaryText.implicitHeight + (bodyText.visible ? bodyText.implicitHeight + 2 : 0)
+                                Layout.preferredHeight: height
+                                Layout.alignment: Qt.AlignTop
+                                radius: 1.5
+                                color: notificationRoot.primaryColor
+                            }
 
-                        Text {
-                            text: modelData.body
-                            font.family: "Rubik"
-                            font.pixelSize: 11
-                            color: "#80ffffff"
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 3
-                            elide: Text.ElideRight
-                            visible: modelData.body !== ""
-                            Layout.bottomMargin: 2
+                            ColumnLayout {
+                                spacing: 2
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+
+                                Text {
+                                    id: summaryText
+                                    text: modelData.summary
+                                    font.family: "Rubik"
+                                    font.pixelSize: 13
+                                    font.weight: Font.Bold
+                                    color: "#ffffff"
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    id: bodyText
+                                    text: modelData.body
+                                    font.family: "Rubik"
+                                    font.pixelSize: 11
+                                    color: "#a6adc8"
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 3
+                                    elide: Text.ElideRight
+                                    visible: modelData.body !== ""
+                                }
+                            }
                         }
                     }
 
@@ -549,7 +570,7 @@ Item {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    notificationRoot.notificationsEnabled = !notificationRoot.notificationsEnabled;
+                                    rootScope.notificationsEnabled = !rootScope.notificationsEnabled;
                                     notificationRoot.updateCount();
                                     checkUserActivity();
                                 }
