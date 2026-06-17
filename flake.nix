@@ -12,10 +12,6 @@
       url = "github:jacopone/antigravity-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    qylock = {
-      url = "github:Darkkal44/qylock";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     silentSDDM = {
       url = "github:uiriansan/SilentSDDM";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -31,7 +27,6 @@
     hyprland,
     home-manager,
     antigravity-nix,
-    qylock,
     silentSDDM,
     nix-cachyos-kernel,
     ...
@@ -40,7 +35,6 @@
       system = "x86_64-linux";
       specialArgs = {inherit inputs;};
       modules = [
-        qylock.nixosModules.default
         silentSDDM.nixosModules.default
 
         hyprland.nixosModules.default

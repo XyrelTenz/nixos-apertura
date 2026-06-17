@@ -7,7 +7,7 @@
   environment.systemPackages = with pkgs; [
     wget
     git
-    kitty
+    ghostty
     rofi
     fastfetch
     unzip
@@ -75,13 +75,19 @@
     matugen
     awww
     brightnessctl
+    wallust
+    cliphist
+    imagemagick
+    jq
+    zoxide
+    ddcutil
     (symlinkJoin {
       name = "quickshell-wrapped";
       paths = [quickshell];
       nativeBuildInputs = [makeWrapper];
       postBuild = ''
         wrapProgram $out/bin/qs \
-          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugen awww cava bash brightnessctl grim slurp satty hyprpicker wl-clipboard]}" \
+          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugen awww cava bash brightnessctl grim slurp satty hyprpicker wl-clipboard wallust cliphist imagemagick jq ddcutil]}" \
           --prefix QML2_IMPORT_PATH : "${kdePackages.qt5compat}/lib/qt-6/qml" \
           --prefix QT_PLUGIN_PATH : "${kdePackages.qtimageformats}/lib/qt-6/plugins"
       '';

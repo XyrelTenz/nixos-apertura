@@ -21,20 +21,8 @@
   };
 
 
-  # Lockscreen (qylock) — used for desktop locking only, not as the SDDM theme
-  programs.qylock = {
-    enable = true;
-    theme = "clockwork";
-    sddm.enable = false;       # Disables qylock as SDDM theme, using sddm-astronaut instead
-    quickshell.enable = true;  # Keeps qylock-lock in PATH for desktop locking
-
-    themeOptions = {
-      clockwork.orbital = {
-        themeMode = "dark";
-        enableWindup = true;
-      };
-    };
-  };
+  # PAM service for Quickshell lockscreen
+  security.pam.services.quickshell = {};
 
   # Hardware
   hardware.graphics.enable = true;

@@ -18,13 +18,23 @@ in
     }
 
     _linkConfig "hypr"                "hypr"
-    _linkConfig "kitty"               "kitty"
+    _linkConfig "ghostty"             "ghostty"
     _linkConfig "cava"                "cava"
     _linkConfig "nvim"                "nvim"
-    _linkConfig "quickshell/Apertura" "quickshell/Apertura"
+    _linkConfig "quickshell"          "quickshell"
     _linkConfig "fish"                "fish"
+    _linkConfig "wallust"             "wallust"
 
     # Starship config lives at ~/.config/starship.toml
     ln -sfn "${repoPath}/starship.toml" "$HOME/.config/starship.toml"
+
+    # Link fastfetch lantern logo
+    mkdir -p "$HOME/.config/fastfetch"
+    ln -sfn "${repoPath}/fastfetch/lantern.txt" "$HOME/.config/fastfetch/lantern.txt"
+
+    # Create placeholders for wallust cache outputs to prevent startup crashes
+    mkdir -p "$HOME/.cache/wallust"
+    touch "$HOME/.cache/wallust/ghostty-colors"
+    touch "$HOME/.cache/wallust/hypr-colors.lua"
   '';
 }

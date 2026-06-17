@@ -1,9 +1,4 @@
 if status is-interactive
-    # ── Suppress greeting ─────────────────────────────────────────────
-    set -g fish_greeting
-    # ── Starship prompt ───────────────────────────────────────────────
-    starship init fish | source
-
     # ── Useful abbreviations ──────────────────────────────────────────
     abbr -a ll  'ls -lah'
     abbr -a la  'ls -A'
@@ -16,8 +11,23 @@ if status is-interactive
     abbr -a nrs 'sudo nixos-rebuild switch --flake ~/.nixos-config#'
     abbr -a v   'nvim'
     abbr -a cat 'bat'
+    abbr -a ff  'fastfetch'
+
+    # ── Tool integrations ─────────────────────────────────────────────
+    if command -v zoxide >/dev/null 2>&1
+        zoxide init fish | source
+    end
+    if command -v starship >/dev/null 2>&1
+        starship init fish | source
+    end
 
     # ── Environment ───────────────────────────────────────────────────
     set -x EDITOR nvim
     set -x VISUAL nvim
+end
+
+function fish_greeting
+    if status is-interactive
+        ~/.config/fish/torii-greeting.sh
+    end
 end
