@@ -30,7 +30,9 @@ Item {
             font.family: Theme.font
             font.pixelSize: 13 * clock.s
             font.weight: Font.DemiBold
-            font.features: { "tnum": 1 }
+            font.features: {
+                "tnum": 1
+            }
         }
 
         Rectangle {
@@ -42,7 +44,11 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: sysClock.date.toLocaleDateString(clock.deLocale, "ddd dd MMM").toUpperCase()
+            text: sysClock.date.toLocaleTimeString(clock.deLocale, {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).toUpperCase()
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: 10 * clock.s
