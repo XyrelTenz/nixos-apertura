@@ -2,7 +2,7 @@ local mod = "SUPER"
 
 hl.bind(mod .. " + Q", hl.dsp.window.close())
 hl.bind(mod .. " + T", hl.dsp.exec_cmd("ghostty"))
-hl.bind(mod .. " + F", hl.dsp.exec_cmd("firefox"))
+hl.bind(mod .. " + F", hl.dsp.exec_cmd("brave"))
 hl.bind(mod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 hl.bind(mod .. " + E", hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + SHIFT + T", hl.dsp.window.float({ action = "toggle" }))
@@ -27,6 +27,8 @@ hl.bind(mod .. " + L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scrip
 
 hl.bind(mod .. " + C", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/wallpaper.sh"))
 hl.bind(mod .. " + W", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/wallpaper-picker.sh"))
+hl.bind(mod .. " + D", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/record.sh"))
+
 
 hl.bind(
 	"XF86AudioRaiseVolume",

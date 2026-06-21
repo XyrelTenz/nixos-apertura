@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { globalToLocal, localToGlobal, intersectRect, rectFromPoints } = require("./coords.js");
+const { intersectRect, rectFromPoints } = require("./coords.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -13,15 +13,6 @@ function eq(actual, expected, msg) {
         console.log("FAIL " + msg + "\n  expected " + e + "\n  got      " + a);
     }
 }
-
-const dpX = 2560, dpY = 0;
-eq(globalToLocal({ x: 2600, y: 100 }, dpX, dpY), { x: 40, y: 100 }, "globalToLocal DP-1 point");
-
-const g = { x: 2600, y: 100 };
-const local = globalToLocal(g, dpX, dpY);
-eq(localToGlobal(local, dpX, dpY), g, "round-trip localToGlobal inverts");
-
-eq(globalToLocal({ x: 300, y: 200 }, 0, 0), { x: 300, y: 200 }, "globalToLocal HDMI point");
 
 const span = { x: 2400, y: 200, w: 400, h: 300 };
 const hdmi = { x: 0, y: 0, width: 2560, height: 1440 };

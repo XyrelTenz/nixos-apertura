@@ -57,6 +57,7 @@
             antigravity-nix.packages.x86_64-linux.google-antigravity-ide
           ];
           nixpkgs.config.allowUnfree = true;
+          nixpkgs.config.android_sdk.accept_license = true;
         }
         {
           nixpkgs.overlays = [ nix-cachyos-kernel.overlays.pinned ];

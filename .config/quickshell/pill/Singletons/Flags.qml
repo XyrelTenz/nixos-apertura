@@ -20,6 +20,13 @@ Singleton {
     property alias showGlyphs: adapter.showGlyphs
     property alias dynamicPalette: adapter.dynamicPalette
     property alias recordCountdown: adapter.recordCountdown
+    property alias recordDir: adapter.recordDir
+    property alias recordFps: adapter.recordFps
+    property alias recordQuality: adapter.recordQuality
+    property alias recordCursor: adapter.recordCursor
+    property alias recordMic: adapter.recordMic
+    property alias recordDesktop: adapter.recordDesktop
+    property alias recordClearedBefore: adapter.recordClearedBefore
 
     FileView {
         id: file
@@ -40,6 +47,15 @@ Singleton {
             property bool showGlyphs: true
             property bool dynamicPalette: false
             property int recordCountdown: 5
+            property string recordDir: ""
+            property int recordFps: 60
+            property string recordQuality: "high"
+            property bool recordCursor: true
+            property bool recordMic: true
+            property bool recordDesktop: true
+            property real recordClearedBefore: 0
         }
     }
+
+    Component.onCompleted: if (!file.loaded) file.writeAdapter();
 }

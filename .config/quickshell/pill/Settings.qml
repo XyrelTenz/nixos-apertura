@@ -10,7 +10,8 @@ import "Singletons"
  * gates every surface header, and the accent-palette mode; Recording carries the
  * capture countdown. Toggles reuse LinkToggle; choice rows use an inline
  * mini-segmented control that flame-tints the selected pill. Exposes
- * `implicitHeight` from its content and docks Ame at the header gear.
+ * `implicitHeight` from its content and rides the hovered row with a glowing
+ * seam, like the link surface.
  */
 PillSurface {
     id: root
@@ -22,14 +23,90 @@ PillSurface {
 
     implicitHeight: content.implicitHeight
 
-    readonly property point gearPoint: {
-        void root.width;
-        void root.height;
-        return gear.mapToItem(root, gear.width / 2, gear.height / 2);
+    /**
+     * Row-soul focus registry, mirroring the link surface: each row reports its
+     * hover here and the bead docks as a glowing seam at the left edge of the
+     * focused row, hidden when nothing is focused. Sticky while open so the seam
+     * glides between rows instead of re-waking from the pill centre; cleared when
+     * the surface closes.
+     */
+    property Item focusRowItem: null
+    property int kbIndex: -1
+
+    function reportRowHover(item, hovered) {
+        if (hovered) {
+            focusRowItem = item;
+            kbIndex = rowIndexOf(item);
+        }
+    }
+    onActiveChanged: if (!active) {
+        focusRowItem = null;
+        kbIndex = -1;
     }
 
-    ameForm: open ? "dock" : "off"
-    amePoint: gearPoint
+    /**
+     * Keyboard-navigable row registry: each entry pairs a row item with its
+     * control kind and a getter/setter onto the backing flag. The host routes
+     * arrow keys here — up/down move the focused row and carry the soul seam with
+     * it, left/right step a segmented choice or set a toggle, return flips a
+     * toggle. Hover keeps `kbIndex` in sync so the two never disagree.
+     */
+    readonly property var rows: [
+        { item: timeRow, kind: "seg", vals: [false, true], get: function () { return Flags.time12h; }, set: function (v) { Flags.time12h = v; } },
+        { item: secRow, kind: "toggle", get: function () { return Flags.clockSeconds; }, set: function (v) { Flags.clockSeconds = v; } },
+        { item: glyphRow, kind: "toggle", get: function () { return Flags.showGlyphs; }, set: function (v) { Flags.showGlyphs = v; } },
+        { item: accentRow, kind: "seg", vals: [false, true], get: function () { return Flags.dynamicPalette; }, set: function (v) { Flags.dynamicPalette = v; } },
+        { item: cdRow, kind: "seg", vals: [0, 3, 5, 10], get: function () { return Flags.recordCountdown; }, set: function (v) { Flags.recordCountdown = v; } }
+    ]
+
+    function rowIndexOf(item) {
+        for (var i = 0; i < rows.length; i++)
+            if (rows[i].item === item)
+                return i;
+        return -1;
+    }
+
+    function kbMove(dir) {
+        kbIndex = Math.max(0, Math.min(rows.length - 1, (kbIndex < 0 ? 0 : kbIndex + dir)));
+        focusRowItem = rows[kbIndex].item;
+    }
+
+    function kbAdjust(dir) {
+        if (kbIndex < 0) {
+            kbIndex = 0;
+            focusRowItem = rows[0].item;
+        }
+        var r = rows[kbIndex];
+        if (r.kind === "seg") {
+            var i = r.vals.indexOf(r.get());
+            r.set(r.vals[Math.max(0, Math.min(r.vals.length - 1, (i < 0 ? 0 : i) + dir))]);
+        } else {
+            r.set(dir > 0);
+        }
+    }
+
+    function kbActivate() {
+        if (kbIndex < 0)
+            return;
+        var r = rows[kbIndex];
+        if (r.kind === "toggle")
+            r.set(!r.get());
+    }
+
+    readonly property bool rowFocused: focusRowItem !== null && active
+
+    readonly property point rowPoint: {
+        void root.width;
+        void root.height;
+        void content.implicitHeight;
+        void root.focusRowItem;
+        if (!focusRowItem)
+            return Qt.point(4 * root.s, root.height / 2);
+        return focusRowItem.mapToItem(root, 4 * root.s, focusRowItem.height / 2);
+    }
+
+    ameForm: rowFocused ? "rowseam" : "off"
+    amePoint: rowPoint
 
     /**
      * Mini-segmented choice control. `options` is a list of `{ label, value }`;
@@ -68,9 +145,9 @@ PillSurface {
                     width: optLabel.implicitWidth + 18 * root.s
                     height: optLabel.implicitHeight + 12 * root.s
                     radius: 7 * root.s
-                    color: opt.current ? Qt.alpha(Theme.vermDeep, 0.18) : "transparent"
-                    border.width: opt.current ? 1 : 0
-                    border.color: Qt.alpha(Theme.vermLit, 0.4)
+                    color: opt.current ? Qt.alpha(Theme.vermLit, 0.20) : "transparent"
+                    border.width: 1
+                    border.color: opt.current ? Qt.alpha(Theme.vermLit, 0.55) : "transparent"
                     Behavior on color { ColorAnimation { duration: Motion.fast } }
 
                     Text {
@@ -109,9 +186,24 @@ PillSurface {
         width: parent ? parent.width : 0
         height: Math.max(textCol.implicitHeight, controlSlot.childrenRect.height) + 26 * root.s
 
+        HoverHandler {
+            id: srowHover
+            onHoveredChanged: root.reportRowHover(srow, hovered)
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 3 * root.s
+            anchors.bottomMargin: 3 * root.s
+            radius: 9 * root.s
+            color: (srowHover.hovered || root.focusRowItem === srow) ? Theme.frameBg : "transparent"
+            Behavior on color { ColorAnimation { duration: Motion.fast } }
+        }
+
         Column {
             id: textCol
             anchors.left: parent.left
+            anchors.leftMargin: 12 * root.s
             anchors.right: controlSlot.left
             anchors.rightMargin: 14 * root.s
             anchors.verticalCenter: parent.verticalCenter
@@ -206,6 +298,7 @@ PillSurface {
         Text {
             topPadding: 17 * root.s
             bottomPadding: 2 * root.s
+            leftPadding: 12 * root.s
             text: "Appearance"
             color: Theme.faint
             font.family: Theme.font
@@ -216,6 +309,7 @@ PillSurface {
         }
 
         SRow {
+            id: timeRow
             name: "Time format"
             sub: "24-hour stays the default"
 
@@ -227,6 +321,7 @@ PillSurface {
         }
 
         SRow {
+            id: secRow
             name: "Clock seconds"
             sub: "Show :SS in the pill clock"
 
@@ -238,6 +333,7 @@ PillSurface {
         }
 
         SRow {
+            id: glyphRow
             name: "Japanese glyphs"
             sub: "Kanji on surface headers (蓄 BATTERY…). Off swaps for plain labels."
 
@@ -249,6 +345,7 @@ PillSurface {
         }
 
         SRow {
+            id: accentRow
             name: "Accent palette"
             sub: "Static = fixed flame · Dynamic = recolor per wallpaper (matugen)"
 
@@ -262,6 +359,7 @@ PillSurface {
         Text {
             topPadding: 17 * root.s
             bottomPadding: 2 * root.s
+            leftPadding: 12 * root.s
             text: "Recording"
             color: Theme.faint
             font.family: Theme.font
@@ -272,6 +370,7 @@ PillSurface {
         }
 
         SRow {
+            id: cdRow
             name: "Countdown"
             sub: "Delay before capture starts"
             last: true

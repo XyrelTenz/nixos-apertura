@@ -3,7 +3,7 @@
 {
   users.users.xyreltenz = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "adbusers" ];
+    extraGroups = [ "wheel" "networkmanager" "adbusers" "kvm" ];
     shell = pkgs.fish;
   };
 }

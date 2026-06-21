@@ -1,9 +1,10 @@
-{pkgs ? import <nixpkgs> {config.android_sdk.accept_license = true;}}: let
+{pkgs ? import <nixpkgs> {config.android_sdk.accept_license = true; config.allowUnfree = true;}}: let
   android = pkgs.androidenv.composeAndroidPackages {
     platformVersions = ["34"];
-    abiVersions = ["arm64-v8a"];
+    abiVersions = ["x86_64"];
     includeEmulator = true;
     includeSystemImages = true;
+    systemImageTypes = ["google_apis_playstore"];
   };
 in
   pkgs.mkShell {

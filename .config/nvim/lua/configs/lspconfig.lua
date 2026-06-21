@@ -87,7 +87,7 @@ vim.lsp.config("nixd", {
 local qml_system_path = "/run/current-system/sw/lib/qt-6/qml"
 
 vim.lsp.config("qmlls", {
-	cmd = { "qmlls", "--import-path", qml_system_path },
+	cmd = { "qmlls", "-I", qml_system_path },
 	filetypes = { "qml" },
 	root_dir = vim.fs.root(0, { "qmldir", "CMakeLists.txt", ".git" }),
 })
@@ -127,8 +127,6 @@ vim.lsp.enable({
 	"qmlls",
 	"taplo",
 })
-
-require("telescope").load_extension("projects")
 
 vim.api.nvim_create_autocmd("LspAttach", {
 	callback = function(args)

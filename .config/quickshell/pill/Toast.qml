@@ -62,8 +62,8 @@ Item {
             anchors.fill: parent
             anchors.margins: root.notif.image ? 0 : 6 * root.s
             source: Notifs.iconFor(root.notif)
-            sourceSize.width: 64
-            sourceSize.height: 64
+            sourceSize.width: 56
+            sourceSize.height: 56
             fillMode: Image.PreserveAspectCrop
             smooth: true
             visible: source.toString().length > 0

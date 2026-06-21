@@ -14,3 +14,6 @@ pcall(require, "modules.private")
 
 -- GhostType hotkey (managed by the app)
 pcall(require, "ghosttype")
+
+-- load rishot binds (managed by rishot settings)
+pcall(require, "rishot")

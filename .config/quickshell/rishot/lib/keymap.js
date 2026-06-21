@@ -42,7 +42,7 @@ var PUNCT = {
     0x5b: "bracketleft", 0x5d: "bracketright", 0x2d: "minus", 0x3d: "equal"
 };
 
-function keyName(key, text) {
+function keyName(key) {
     if (MODIFIER_KEYS[key]) return null;
     if (NAMED_KEYS[key]) return NAMED_KEYS[key];
     if (PUNCT[key]) return PUNCT[key];
@@ -59,8 +59,8 @@ function modNames(modifiers) {
     return out;
 }
 
-function bindString(key, modifiers, text) {
-    var k = keyName(key, text);
+function bindString(key, modifiers) {
+    var k = keyName(key);
     if (k === null) return null;
     var parts = modNames(modifiers);
     parts.push(k);
@@ -68,11 +68,7 @@ function bindString(key, modifiers, text) {
 }
 
 function luaLine(bind) {
-    return 'hl.bind("' + bind + '", hl.dsp.exec_cmd("flock -n /tmp/rishot.lock qs -c rishot"))';
-}
-
-function luaFile(bind) {
-    return luaLine(bind) + "\n";
+    return 'hl.bind("' + bind + '", hl.dsp.exec_cmd("rishot"))';
 }
 
 function parseBind(luaText) {
@@ -80,7 +76,43 @@ function parseBind(luaText) {
     return m ? m[1] : null;
 }
 
+function confLine(key, modifiers) {
+    var k = keyName(key);
+    if (k === null) return null;
+    var mods = modNames(modifiers).join(" ");
+    return "bind = " + mods + ", " + k + ", exec, rishot";
+}
+
+function replaceLuaBind(existing, bind) {
+    var line = luaLine(bind);
+    var re = /^[^\n]*exec_cmd\("rishot"\)[^\n]*$/m;
+    if (re.test(existing)) return existing.replace(re, line);
+    var sep = (existing.length && existing.charAt(existing.length - 1) !== "\n") ? "\n" : "";
+    return existing + sep + line + "\n";
+}
+
+function replaceConfBind(existing, key, modifiers) {
+    var line = confLine(key, modifiers);
+    if (line === null) return null;
+    var re = /^bind\s*=.*,\s*exec\s*,\s*rishot\s*$/m;
+    if (re.test(existing)) return existing.replace(re, line);
+    var sep = (existing.length && existing.charAt(existing.length - 1) !== "\n") ? "\n" : "";
+    return existing + sep + line + "\n";
+}
+
+function parseConfBind(confText) {
+    var m = /bind\s*=\s*([^,]*),\s*([^,]+),\s*exec\s*,\s*rishot/.exec(confText);
+    if (!m) return null;
+    var mods = m[1].trim().split(/\s+/).filter(function (s) { return s.length > 0; });
+    var key = m[2].trim();
+    mods.push(key);
+    return mods.join(" + ");
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = { keyName: keyName, modNames: modNames, bindString: bindString,
-        luaLine: luaLine, luaFile: luaFile, parseBind: parseBind };
+        luaLine: luaLine, parseBind: parseBind,
+        confLine: confLine,
+        replaceLuaBind: replaceLuaBind, replaceConfBind: replaceConfBind,
+        parseConfBind: parseConfBind };
 }

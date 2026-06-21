@@ -116,14 +116,6 @@ Item {
                     barWindow: bar.barWindow
                 }
 
-                ScreenRecord {
-                    s: bar.s
-                }
-
-                Battery {
-                    s: bar.s
-                }
-
                 SidebarButton {
                     s: bar.s
                     screenName: bar.screenName

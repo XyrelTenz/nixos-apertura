@@ -2,8 +2,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "Singletons"
 import "lib/coords.js" as Coords
 import "lib/AnnotationModel.js" as Ann
+import "lib/hittest.js" as Hit
 
 ShellRoot {
     id: root
@@ -13,8 +15,9 @@ ShellRoot {
     property bool capturing: false
     property string phase: "selecting"
     property string activeTool: "rect"
-    property color activeColor: vermilion
+    property color activeColor: Theme.vermilion
     property int activeWidth: 4
+    property var toolStyle: ({})
 
     property var model: Ann.create()
     property var draft: null
@@ -22,9 +25,43 @@ ShellRoot {
     property bool settingsOpen: false
     property bool textEditing: false
 
+    property real toolbarDX: 0
+    property real toolbarDY: 0
+    property string openPopover: ""
+
+    /**
+     * Single-key tool shortcuts, mirroring Toolbar's tool descriptors. Kept here
+     * so the Keys.onPressed mapping and the toolbar tooltips stay in sync.
+     */
+    readonly property var toolKeys: ({
+        "v": "select", "r": "rect", "o": "ellipse", "l": "line", "a": "arrow",
+        "p": "pen", "h": "marker", "n": "step", "t": "text", "b": "blur", "x": "pixelate",
+        "z": "zoom"
+    })
+
+    function selectTool(t) {
+        if (textEditing) commitText();
+        clearSelection();
+        activeTool = t;
+        var s = toolStyle[t];
+        activeColor = s ? s.color : Theme.vermilion;
+        activeWidth = s ? s.width : 4;
+    }
+
+    function setToolColor(c) {
+        activeColor = c;
+        toolStyle[activeTool] = { color: c, width: activeWidth };
+    }
+
+    function setToolWidth(w) {
+        activeWidth = w;
+        toolStyle[activeTool] = { color: activeColor, width: w };
+    }
+
     property var selectedIndex: null
     property var moveOffset: null
     property var moveStart: null
+    property var resizing: null
     property var hoverWindow: null
     property var windowRects: []
     property bool dialogMode: false
@@ -33,15 +70,18 @@ ShellRoot {
     function textSize() { return activeWidth * 5 + 8; }
 
     property var overlays: []
-    property int frozenCount: 0
+    property int captureFails: 0
 
-    readonly property bool testRect: Quickshell.env("RISHOT_TESTRECT") === "1"
     readonly property string mode: Quickshell.env("RISHOT_MODE") === "monitor" ? "monitor" : "region"
-    readonly property string homeDir: Quickshell.env("HOME")
-    readonly property string shotsDir: homeDir + "/Pictures/Screenshots"
-    readonly property string rishotLuaPath: homeDir + "/.config/hypr/modules/rishot.lua"
-
-    readonly property color vermilion: "#e0563b"
+    readonly property string homeDir: Quickshell.env("HOME") || "/tmp"
+    readonly property string tmpDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
+    readonly property string shotsDir: Quickshell.env("RISHOT_SAVEDIR")
+        || (Quickshell.env("XDG_PICTURES_DIR")
+            ? Quickshell.env("XDG_PICTURES_DIR") + "/Screenshots"
+            : homeDir + "/Pictures/Screenshots")
+    readonly property string uploadEndpoint: Quickshell.env("RISHOT_UPLOAD")
+        || "https://litterbox.catbox.moe/resources/internals/api.php"
+    readonly property string keybindFile: Quickshell.env("RISHOT_KEYBIND_FILE") || ""
 
     function beginSelection(gx, gy) {
         pressPoint = { x: gx, y: gy };
@@ -62,6 +102,33 @@ ShellRoot {
             hoverWindow = null;
         } else globalSel = null;
     }
+
+    /**
+     * Starts a region-resize gesture. The role names which edge or corner is
+     * being dragged ("l", "r", "t", "b", "tl", "tr", "bl", "br"); the opposite
+     * side stays anchored for the duration.
+     */
+    function beginResize(role, gx, gy) { resizing = role; }
+
+    /**
+     * Recomputes globalSel by moving only the dragged edge(s) to the pointer,
+     * clamping each axis to a minimum extent of 8px so the rect never collapses
+     * or inverts. The anchored side is preserved.
+     */
+    function updateResize(gx, gy) {
+        if (resizing === null || !globalSel) return;
+        var s = globalSel, m = 8;
+        var x0 = s.x, y0 = s.y, x1 = s.x + s.w, y1 = s.y + s.h;
+        var r = resizing;
+        if (r === "l" || r === "tl" || r === "bl") x0 = Math.min(gx, x1 - m);
+        if (r === "r" || r === "tr" || r === "br") x1 = Math.max(gx, x0 + m);
+        if (r === "t" || r === "tl" || r === "tr") y0 = Math.min(gy, y1 - m);
+        if (r === "b" || r === "bl" || r === "br") y1 = Math.max(gy, y0 + m);
+        globalSel = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+
+    /** Ends the active region-resize gesture. */
+    function endResize() { resizing = null; }
 
     function clampToSel(gx, gy) {
         var x = Math.max(globalSel.x, Math.min(gx, globalSel.x + globalSel.w));
@@ -91,59 +158,24 @@ ShellRoot {
         bumpAnn();
     }
 
-    function bboxOf(a) {
-        var xs = a.points.map(function (p) { return p.x; });
-        var ys = a.points.map(function (p) { return p.y; });
-        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
-        var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-        if (a.type === "text") {
-            var size = a.size || 16;
-            var w = Math.max((a.text ? a.text.length : 1) * size * 0.6, size);
-            return { x: x0, y: y0, w: w, h: size * 1.4 };
-        }
-        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-    }
-
-    function distToSeg(px, py, a, b) {
-        var dx = b.x - a.x, dy = b.y - a.y;
-        var len2 = dx * dx + dy * dy;
-        if (len2 === 0) return Math.hypot(px - a.x, py - a.y);
-        var t = ((px - a.x) * dx + (py - a.y) * dy) / len2;
-        t = Math.max(0, Math.min(1, t));
-        return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
-    }
-
-    function inBox(gx, gy, b, pad) {
-        return gx >= b.x - pad && gx <= b.x + b.w + pad
-            && gy >= b.y - pad && gy <= b.y + b.h + pad;
-    }
-
-    function hitOne(a, gx, gy) {
-        var tol = Math.max(a.width || 4, 8);
-        if (a.type === "rect" || a.type === "marker" || a.type === "blur" || a.type === "text")
-            return inBox(gx, gy, bboxOf(a), a.type === "text" ? 0 : tol);
-        if (a.type === "line" || a.type === "arrow")
-            return distToSeg(gx, gy, a.points[0], a.points[1]) <= tol;
-        if (a.type === "pen") {
-            for (var i = 1; i < a.points.length; i++)
-                if (distToSeg(gx, gy, a.points[i - 1], a.points[i]) <= tol) return true;
-            return false;
-        }
-        if (a.type === "ellipse") {
-            var b = bboxOf(a);
-            var rx = b.w / 2 + tol, ry = b.h / 2 + tol;
-            if (rx <= 0 || ry <= 0) return false;
-            var nx = (gx - (b.x + b.w / 2)) / rx, ny = (gy - (b.y + b.h / 2)) / ry;
-            return nx * nx + ny * ny <= 1;
-        }
-        return false;
-    }
-
-    function hitTest(gx, gy) {
-        var its = model.items;
-        for (var i = its.length - 1; i >= 0; i--)
-            if (hitOne(its[i], gx, gy)) return i;
-        return null;
+    /**
+     * Places a numbered step badge at the clamped point. The label is the
+     * highest existing step number plus one, so deleting a middle badge leaves
+     * a gap (flameshot-style) instead of producing duplicate labels.
+     */
+    function placeStep(gx, gy) {
+        var p = clampToSel(gx, gy);
+        var n = 0;
+        for (var i = 0; i < model.items.length; i++)
+            if (model.items[i].type === "step" && model.items[i].n > n) n = model.items[i].n;
+        model.add({
+            type: "step",
+            points: [p],
+            color: String(activeColor),
+            n: n + 1,
+            size: activeWidth * 4 + 16
+        });
+        bumpAnn();
     }
 
     function clearSelection() {
@@ -158,7 +190,7 @@ ShellRoot {
     }
 
     function beginSelect(gx, gy) {
-        var idx = hitTest(gx, gy);
+        var idx = Hit.hitTest(model.items, gx, gy);
         selectedIndex = idx;
         if (idx !== null) {
             capturing = true;
@@ -186,13 +218,18 @@ ShellRoot {
     function beginDraw(gx, gy) {
         if (!globalSel || activeTool === "select") return;
         if (activeTool === "text") { placeText(gx, gy); return; }
+        if (activeTool === "step") { placeStep(gx, gy); return; }
         var p = clampToSel(gx, gy);
         pressPoint = p;
         capturing = true;
         if (isFreehand(activeTool))
             draft = { type: activeTool, points: [p], color: String(activeColor), width: activeWidth };
         else if (activeTool === "marker")
-            draft = { type: "marker", points: [p, p], color: "#f5d020", width: activeWidth, filled: true };
+            draft = { type: "marker", points: [p, p], color: String(Theme.markerYellow), width: activeWidth, filled: true };
+        else if (activeTool === "blur" || activeTool === "pixelate")
+            draft = { type: activeTool, points: [p, p] };
+        else if (activeTool === "zoom")
+            draft = { type: "zoom", points: [p, p], zoom: Config.zoomFactor };
         else
             draft = { type: activeTool, points: [p, p], color: String(activeColor), width: activeWidth, filled: false };
         bumpAnn();
@@ -203,7 +240,7 @@ ShellRoot {
         if (isFreehand(draft.type)) {
             var last = draft.points[draft.points.length - 1];
             if (Math.abs(p.x - last.x) < 2 && Math.abs(p.y - last.y) < 2) return;
-            draft.points = draft.points.concat([p]);
+            draft.points.push(p);
         } else {
             draft.points = [pressPoint, p];
         }
@@ -261,30 +298,8 @@ ShellRoot {
         if (phase !== "selecting") { if (hoverWindow !== null) hoverWindow = null; return; }
         hoverWindow = mode === "monitor" ? monitorAt(gx, gy) : windowAt(gx, gy);
     }
-    function parseWindows(activeWs, json) {
-        var rects = [];
-        try {
-            var arr = JSON.parse(json);
-            for (var i = 0; i < arr.length; i++) {
-                var c = arr[i];
-                if (!c.mapped || c.hidden) continue;
-                if (!c.workspace || activeWs.indexOf(c.workspace.id) === -1) continue;
-                if (!c.size || c.size[0] <= 0 || c.size[1] <= 0) continue;
-                rects.push({ x: c.at[0], y: c.at[1], w: c.size[0], h: c.size[1], z: c.focusHistoryID });
-            }
-        } catch (e) { console.log("rishot: parseWindows failed: " + e); }
-        windowRects = rects;
-    }
-    function parseActiveWs(json) {
-        var ids = [];
-        try {
-            var arr = JSON.parse(json);
-            for (var i = 0; i < arr.length; i++)
-                if (arr[i].activeWorkspace) ids.push(arr[i].activeWorkspace.id);
-        } catch (e) { console.log("rishot: parseActiveWs failed: " + e); }
-        return ids;
-    }
     function pointerPressed(gx, gy) {
+        if (resizing !== null) return;
         if (phase === "selecting") {
             if (mode === "monitor") selectMonitor(gx, gy);
             else beginSelection(gx, gy);
@@ -293,6 +308,7 @@ ShellRoot {
         else beginDraw(gx, gy);
     }
     function pointerMoved(gx, gy) {
+        if (resizing !== null) return;
         if (phase === "selecting") updateSelection(gx, gy);
         else if (activeTool === "select") updateSelect(gx, gy);
         else updateDraw(gx, gy);
@@ -350,7 +366,7 @@ ShellRoot {
             if (!inter) continue;
             slices.push({
                 win: overlays[i],
-                tmp: "/tmp/rishot-seam-" + i + ".png",
+                tmp: root.tmpDir + "/rishot-seam-" + i + ".png",
                 ox: Math.round(s.x + inter.x - globalSel.x),
                 oy: Math.round(s.y + inter.y - globalSel.y)
             });
@@ -397,7 +413,7 @@ ShellRoot {
     }
 
     function doUpload() {
-        var tmp = "/tmp/rishot-upload.png";
+        var tmp = root.tmpDir + "/rishot-upload.png";
         grabTo(tmp, function (ok) {
             if (ok) uploadProc.run(tmp);
             else Qt.quit();
@@ -433,8 +449,10 @@ ShellRoot {
         id: copyProc
         function run(file) {
             command = ["sh", "-c",
-                "wl-copy --type image/png < \"$1\"; "
-                + "if [ \"$(stat -c%s \"$1\")\" -ge 4900000 ]; then magick \"$1\" -quality 92 jpeg:- | cliphist store; "
+                "exec 9>&-; wl-copy --type image/png < \"$1\"; "
+                + "command -v cliphist >/dev/null 2>&1 || exit 0; "
+                + "if [ \"$(stat -c%s \"$1\")\" -ge 4900000 ]; then "
+                + "command -v magick >/dev/null 2>&1 && magick \"$1\" -quality 92 jpeg:- | cliphist store; "
                 + "else cliphist store < \"$1\"; fi",
                 "_", file];
             running = true;
@@ -446,9 +464,11 @@ ShellRoot {
         id: uploadProc
         stdout: StdioCollector { id: uploadOut }
         function run(file) {
-            command = ["curl", "-sf", "--max-time", "30", "-A", "Mozilla/5.0", "-F", "reqtype=fileupload",
-                "-F", "time=72h", "-F", "fileToUpload=@" + file,
-                "https://litterbox.catbox.moe/resources/internals/api.php"];
+            command = ["sh", "-c",
+                "out=$(curl -sf --proto '=https' --max-time 30 -A \"Mozilla/5.0\" "
+                + "-F reqtype=fileupload -F time=72h -F fileToUpload=@\"$1\" \"$2\"); "
+                + "rm -f \"$1\"; printf %s \"$out\"",
+                "_", file, root.uploadEndpoint];
             running = true;
         }
         onExited: (code) => {
@@ -462,27 +482,18 @@ ShellRoot {
     Process {
         id: urlCopyProc
         function run(url) {
-            command = ["sh", "-c", "printf %s " + JSON.stringify(url) + " | wl-copy"];
+            command = ["sh", "-c", "exec 9>&-; printf %s \"$1\" | wl-copy", "_", url];
             running = true;
         }
         onExited: () => Qt.quit()
     }
 
-    Process {
-        id: monitorsProc
-        running: true
-        command: ["hyprctl", "monitors", "-j"]
-        stdout: StdioCollector { id: monitorsOut }
-        onExited: { clientsProc.activeWs = root.parseActiveWs(monitorsOut.text); clientsProc.running = true; }
+    WindowProvider {
+        id: windowProvider
+        onWindowsReady: (rects) => root.windowRects = rects
     }
 
-    Process {
-        id: clientsProc
-        property var activeWs: []
-        command: ["hyprctl", "clients", "-j"]
-        stdout: StdioCollector { id: clientsOut }
-        onExited: root.parseWindows(activeWs, clientsOut.text)
-    }
+    Component.onCompleted: windowProvider.refresh()
 
     Process {
         id: stitchProc
@@ -490,15 +501,20 @@ ShellRoot {
         function runWith(args, after) { cb = after; command = args; running = true; }
         onExited: (code) => {
             console.log("rishot: seam-stitch composite exit " + code);
+            seamCleanup.command = ["sh", "-c", "rm -f \"$1\"/rishot-seam-*.png", "_", root.tmpDir];
+            seamCleanup.running = true;
             var f = cb;
             cb = null;
             if (f) f(code === 0);
         }
     }
 
-    function noteFrozen() {
-        frozenCount += 1;
-        if (testRect && frozenCount >= Quickshell.screens.length) testDriver.start();
+    Process { id: seamCleanup }
+
+    Process {
+        id: mkdirProc
+        running: true
+        command: ["mkdir", "-p", root.shotsDir]
     }
 
     function toolbarFor(win) {
@@ -532,21 +548,69 @@ ShellRoot {
                 : null
 
             FocusScope {
+                id: keyScope
                 anchors.fill: parent
                 focus: true
 
+                /**
+                 * Re-asserts scope focus once no overlay child holds it. The
+                 * SettingsPanel key-catcher and the colour hex field grab active
+                 * focus while open; when they hide, Qt drops their focus without
+                 * restoring the scope default, which would silently kill the
+                 * single-key tool shortcuts. Re-grabbing here keeps them live.
+                 */
+                function reclaimFocus() {
+                    if (!root.textEditing && root.openPopover === "" && !root.settingsOpen)
+                        keyScope.forceActiveFocus();
+                }
+
+                Connections {
+                    target: root
+                    function onOpenPopoverChanged() { keyScope.reclaimFocus(); }
+                    function onSettingsOpenChanged() { keyScope.reclaimFocus(); }
+                }
+
                 Keys.onEscapePressed: {
                     if (root.textEditing) root.cancelText();
+                    else if (root.openPopover !== "") root.openPopover = "";
                     else if (root.settingsOpen) root.settingsOpen = false;
                     else if (root.selectedIndex !== null) root.clearSelection();
                     else Qt.quit();
                 }
                 Keys.onPressed: (e) => {
                     if (root.textEditing) return;
-                    if (e.key === Qt.Key_C && (e.modifiers & Qt.ControlModifier)) { root.doCopy(); e.accepted = true; }
-                    else if (e.key === Qt.Key_Z && (e.modifiers & Qt.ControlModifier)) { root.undo(); e.accepted = true; }
-                    else if (e.key === Qt.Key_Y && (e.modifiers & Qt.ControlModifier)) { root.redo(); e.accepted = true; }
-                    else if ((e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) && root.selectedIndex !== null) { root.deleteSelected(); e.accepted = true; }
+                    if (e.modifiers & Qt.ControlModifier) {
+                        if (e.key === Qt.Key_C) { root.doCopy(); e.accepted = true; }
+                        else if (e.key === Qt.Key_S) { if (root.phase === "editing") root.doSave(); e.accepted = true; }
+                        else if (e.key === Qt.Key_U) { if (root.phase === "editing") root.doUpload(); e.accepted = true; }
+                        else if (e.key === Qt.Key_Z) { root.undo(); e.accepted = true; }
+                        else if (e.key === Qt.Key_Y) { root.redo(); e.accepted = true; }
+                        return;
+                    }
+                    if (e.modifiers & (Qt.AltModifier | Qt.MetaModifier)) return;
+                    if ((e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) && root.selectedIndex !== null) {
+                        root.deleteSelected();
+                        e.accepted = true;
+                        return;
+                    }
+                    var t = root.toolKeys[e.text];
+                    if (t !== undefined) {
+                        root.openPopover = "";
+                        root.selectTool(t);
+                        e.accepted = true;
+                    } else if (root.phase === "editing" && e.text === ",") {
+                        root.openPopover = "";
+                        root.settingsOpen = !root.settingsOpen;
+                        e.accepted = true;
+                    } else if (root.phase === "editing" && e.text === "c") {
+                        root.settingsOpen = false;
+                        root.openPopover = root.openPopover === "color" ? "" : "color";
+                        e.accepted = true;
+                    } else if (root.phase === "editing" && e.text === "w") {
+                        root.settingsOpen = false;
+                        root.openPopover = root.openPopover === "width" ? "" : "width";
+                        e.accepted = true;
+                    }
                 }
 
                 Overlay {
@@ -555,6 +619,7 @@ ShellRoot {
                     screenData: win.modelData
                     globalSel: root.globalSel
                     capturing: root.capturing
+                    phase: root.phase
                     model: root.model
                     draft: root.draft
                     annRevision: root.annRevision
@@ -567,7 +632,16 @@ ShellRoot {
                     onMovedTo: (gx, gy) => root.pointerMoved(gx, gy)
                     onHovered: (gx, gy) => root.pointerHover(gx, gy)
                     onReleased: root.pointerReleased()
-                    onFrozen: root.noteFrozen()
+                    onResizeStarted: (role, gx, gy) => root.beginResize(role, gx, gy)
+                    onResizeMoved: (gx, gy) => root.updateResize(gx, gy)
+                    onResizeEnded: root.endResize()
+                    onCaptureTimedOut: {
+                        root.captureFails += 1;
+                        if (root.captureFails >= Quickshell.screens.length) {
+                            console.warn("rishot: no screen produced a frame, quitting");
+                            Qt.quit();
+                        }
+                    }
                     onTextChanged: (t) => { if (root.draft && root.draft.type === "text") { root.draft.text = t; root.bumpAnn(); } }
                     onTextCommitted: root.commitText()
                 }
@@ -584,114 +658,80 @@ ShellRoot {
 
                     x: {
                         if (!win.selLocal) return 0;
-                        var cx = win.selLocal.x + win.selLocal.w / 2 - width / 2;
+                        var cx = win.selLocal.x + win.selLocal.w / 2 - width / 2 + root.toolbarDX;
                         return Math.max(8, Math.min(cx, win.width - width - 8));
                     }
                     y: {
                         if (!win.selLocal) return 0;
                         var below = win.selLocal.y + win.selLocal.h + 12;
                         if (below + height > win.height - 8) below = win.selLocal.y - height - 12;
-                        return Math.max(8, below);
+                        return Math.max(8, Math.min(below + root.toolbarDY, win.height - height - 8));
                     }
 
-                    onToolPicked: (t) => { if (root.textEditing) root.commitText(); root.clearSelection(); root.activeTool = t; }
-                    onColorPicked: (c) => root.activeColor = c
-                    onWidthPicked: (w) => root.activeWidth = w
+                    onToolPicked: (t) => root.selectTool(t)
+                    onColorButtonClicked: { root.settingsOpen = false; root.openPopover = root.openPopover === "color" ? "" : "color"; }
+                    onWidthButtonClicked: { root.settingsOpen = false; root.openPopover = root.openPopover === "width" ? "" : "width"; }
                     onUndoRequested: root.undo()
                     onRedoRequested: root.redo()
                     onCopyRequested: root.doCopy()
                     onSaveRequested: root.doSave()
                     onUploadRequested: root.doUpload()
-                    onSettingsRequested: root.settingsOpen = toolbar.settingsOpen
+                    onSettingsRequested: { root.openPopover = ""; root.settingsOpen = !root.settingsOpen; }
+                    onDragMoved: (dx, dy) => {
+                        if (!win.selLocal) return;
+                        var ax = win.selLocal.x + win.selLocal.w / 2 - toolbar.width / 2;
+                        var ay = win.selLocal.y + win.selLocal.h + 12;
+                        if (ay + toolbar.height > win.height - 8) ay = win.selLocal.y - toolbar.height - 12;
+                        var minDX = 8 - ax, maxDX = (win.width - toolbar.width - 8) - ax;
+                        var minDY = 8 - ay, maxDY = (win.height - toolbar.height - 8) - ay;
+                        root.toolbarDX = Math.max(minDX, Math.min(root.toolbarDX + dx, maxDX));
+                        root.toolbarDY = Math.max(minDY, Math.min(root.toolbarDY + dy, maxDY));
+                    }
+                    onDragReset: { root.toolbarDX = 0; root.toolbarDY = 0; }
                 }
 
                 SettingsPanel {
                     id: hotkeyPopover
                     visible: toolbar.visible && root.settingsOpen
-                    luaPath: root.rishotLuaPath
+                    luaPath: root.keybindFile
                     x: Math.max(8, Math.min(toolbar.x + toolbar.gearCenterX - width / 2,
                                             win.width - width - 8))
-                    y: toolbar.y - height - 6
+                    y: {
+                        var above = toolbar.y - height - 6;
+                        if (above < 8) {
+                            var below = toolbar.y + toolbar.height + 6;
+                            return Math.min(below, win.height - height - 8);
+                        }
+                        return above;
+                    }
                     onCloseRequested: root.settingsOpen = false
                     onRebound: Qt.quit()
+                }
+
+                ColorPopover {
+                    id: colorPopover
+                    visible: toolbar.visible && root.openPopover === "color"
+                    selected: root.activeColor
+                    x: Math.max(8, Math.min(toolbar.x + toolbar.colorCenterX - width / 2,
+                                            win.width - width - 8))
+                    y: Math.min(toolbar.y + toolbar.height + 6, win.height - height - 8)
+                    onPicked: (c) => root.setToolColor(c)
+                }
+
+                WidthPopover {
+                    id: widthPopover
+                    visible: toolbar.visible && root.openPopover === "width"
+                    selected: root.activeWidth
+                    x: Math.max(8, Math.min(toolbar.x + toolbar.widthCenterX - width / 2,
+                                            win.width - width - 8))
+                    y: Math.min(toolbar.y + toolbar.height + 6, win.height - height - 8)
+                    onPicked: (w) => { root.setToolWidth(w); root.openPopover = ""; }
                 }
             }
 
             Component.onCompleted: root.overlays.push(win)
 
             function grabExport(path, cb) { ov.grabExport(path, cb); }
-            function grabToolbar(path, cb) {
-                var sched = toolbar.grabToImage(function (r) {
-                    var ok = false;
-                    try { ok = r ? r.saveToFile(path) : false; } catch (e) { ok = false; }
-                    if (cb) cb(ok);
-                });
-                if (!sched && cb) cb(false);
-            }
-        }
-    }
-
-    Timer {
-        id: testDriver
-        interval: 400
-        repeat: false
-        onTriggered: {
-            root.globalSel = { x: 2750, y: 350, w: 760, h: 480 };
-            root.phase = "editing";
-            var bx = 2750, by = 350;
-            root.model.add({
-                type: "ellipse",
-                points: [{ x: bx + 40, y: by + 40 }, { x: bx + 240, y: by + 180 }],
-                color: "#4f8fe0", width: 4, filled: false
-            });
-            root.model.add({
-                type: "line",
-                points: [{ x: bx + 300, y: by + 60 }, { x: bx + 700, y: by + 200 }],
-                color: "#f2c14e", width: 7, filled: false
-            });
-            root.model.add({
-                type: "arrow",
-                points: [{ x: bx + 60, y: by + 440 }, { x: bx + 360, y: by + 260 }],
-                color: "#e23b3b", width: 5, filled: false
-            });
-            var pen = [];
-            for (var i = 0; i <= 40; i++) {
-                var t = i / 40;
-                pen.push({ x: bx + 300 + t * 380, y: by + 320 + Math.sin(t * 6.2832) * 60 });
-            }
-            root.model.add({ type: "pen", points: pen, color: "#5bbf73", width: 3 });
-            var mk = [];
-            for (var j = 0; j <= 20; j++) {
-                var u = j / 20;
-                mk.push({ x: bx + 100 + u * 560, y: by + 410 });
-            }
-            root.model.add({ type: "marker", points: mk, color: "#f2c14e", width: 4 });
-            root.model.add({
-                type: "blur",
-                points: [{ x: bx + 40, y: by + 230 }, { x: bx + 360, y: by + 330 }]
-            });
-            root.model.add({
-                type: "text",
-                points: [{ x: bx + 60, y: by + 20 }],
-                color: "#ffffff", text: "rishot p3b", size: 28
-            });
-            root.bumpAnn();
-            grabTimer.start();
-        }
-    }
-
-    Timer {
-        id: grabTimer
-        interval: 250
-        repeat: false
-        onTriggered: {
-            root.grabTo("/tmp/rishot-p3b.png", function (ok) {
-                console.log("rishot-test: annotated grab ok=" + ok);
-                var w = root.anchorOverlay();
-                if (w) w.grabToolbar("/tmp/rishot-toolbar.png", function (tok) {
-                    console.log("rishot-test: toolbar grab ok=" + tok);
-                });
-            });
         }
     }
 }

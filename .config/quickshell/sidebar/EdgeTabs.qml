@@ -28,7 +28,7 @@ Column {
             bottomLeftRadius: 9 * root.s
             color: tab.on ? Theme.cardTop : Theme.trackBg
             border.width: 1
-            border.color: Theme.border
+            border.color: tab.on ? Theme.border : "#2c2018"
         }
 
         Rectangle {

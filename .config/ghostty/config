@@ -20,4 +20,8 @@ keybind = ctrl+v=paste_from_clipboard
 # keybind = ctrl+return=unbind
 confirm-close-surface = false
 
-config-file = /home/xyreltenz/.cache/matugen/ghostty-colors
+config-file = /home/xyreltenz/.cache/ricelin/ghostty-colors
+
+# Cursor trail animations & shaders
+custom-shader = /home/xyreltenz/.config/ghostty/shaders/cursor_tail.glsl
+custom-shader-animation = always

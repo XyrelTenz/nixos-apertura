@@ -12,21 +12,7 @@ output_path = "/home/xyreltenz/.cache/matugen/hypr-colors.lua"
 input_path = "/home/xyreltenz/.config/matugen/templates/fastfetch.jsonc.tmpl"
 output_path = "/home/xyreltenz/.config/fastfetch/config.jsonc"
 
-[templates.qs_pill]
-input_path = "/home/xyreltenz/.config/matugen/templates/pill-Theme.qml.tmpl"
-output_path = "/home/xyreltenz/.config/quickshell/pill/Singletons/Theme.qml"
 
-[templates.qs_topbar]
-input_path = "/home/xyreltenz/.config/matugen/templates/topbar-Theme.qml.tmpl"
-output_path = "/home/xyreltenz/.config/quickshell/topbar/Singletons/Theme.qml"
-
-[templates.qs_lock]
-input_path = "/home/xyreltenz/.config/matugen/templates/lock-Theme.qml.tmpl"
-output_path = "/home/xyreltenz/.config/quickshell/lock/Singletons/Theme.qml"
-
-[templates.qs_sidebar]
-input_path = "/home/xyreltenz/.config/matugen/templates/sidebar-Theme.qml.tmpl"
-output_path = "/home/xyreltenz/.config/quickshell/sidebar/Singletons/Theme.qml"
 
 [templates.starship]
 input_path = "/home/xyreltenz/.config/matugen/templates/starship.toml.tmpl"

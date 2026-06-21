@@ -7,7 +7,6 @@ Item {
 
     property real s: 1
     property string kanji: ""
-    property string icon: ""
     property string placeholder: ""
     property string counterText: ""
     readonly property alias input: field
@@ -21,37 +20,24 @@ Item {
 
     height: 30 * s
 
-    Item {
-        id: glyphContainer
+    Text {
+        id: glyph
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        visible: Flags.showGlyphs ? (root.kanji !== "") : (root.icon !== "")
-        width: visible ? 16 * root.s : 0
-        height: 16 * root.s
-
-        GlyphIcon {
-            anchors.fill: parent
-            name: root.icon
-            color: Theme.dim
-            visible: !Flags.showGlyphs && root.icon !== ""
-        }
-
-        Text {
-            anchors.centerIn: parent
-            text: root.kanji
-            color: Theme.dim
-            font.family: Theme.fontJp
-            font.weight: Font.Medium
-            font.pixelSize: 16 * root.s
-            visible: Flags.showGlyphs && root.kanji !== ""
-        }
+        visible: Flags.showGlyphs
+        width: Flags.showGlyphs ? implicitWidth : 0
+        text: root.kanji
+        color: Theme.dim
+        font.family: Theme.fontJp
+        font.weight: Font.Medium
+        font.pixelSize: 16 * root.s
     }
 
     TextField {
         id: field
         anchors.verticalCenter: parent.verticalCenter
-        anchors.left: glyphContainer.right
-        anchors.leftMargin: glyphContainer.visible ? 10 * root.s : 0
+        anchors.left: glyph.right
+        anchors.leftMargin: Flags.showGlyphs ? 10 * root.s : 0
         anchors.right: counter.left
         anchors.rightMargin: 10 * root.s
         background: null
@@ -78,6 +64,17 @@ Item {
                 e.accepted = true;
             }
         }
+    }
+
+    Rectangle {
+        anchors.left: field.left
+        anchors.right: field.right
+        anchors.top: field.bottom
+        anchors.topMargin: 2 * root.s
+        height: 1
+        color: Theme.faint
+        opacity: field.activeFocus ? 0.7 : 0
+        Behavior on opacity { NumberAnimation { duration: Motion.standard; easing.type: Motion.easeStandard } }
     }
 
     Text {

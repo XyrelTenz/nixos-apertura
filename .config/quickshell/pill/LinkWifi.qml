@@ -300,7 +300,7 @@ Item {
 
     Process {
         id: hsStateProc
-        command: ["sh", "-c", "nmcli -t -f NAME connection show --active | grep -qx " + root.hsCon + " && echo on || echo off"]
+        command: ["sh", "-c", "nmcli -t -f NAME connection show --active | grep -qx \"$1\" && echo on || echo off", "sh", root.hsCon]
         stdout: StdioCollector {
             onStreamFinished: root.hsActive = this.text.trim() === "on"
         }
@@ -795,12 +795,13 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                GlyphIcon {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "↵"
+                                    width: 14 * root.s
+                                    height: 14 * root.s
+                                    name: "return"
                                     color: enterArea.containsMouse ? Theme.cream : Theme.vermLit
-                                    font.family: Theme.font
-                                    font.pixelSize: 12 * root.s
+                                    stroke: 1.8
 
                                     MouseArea {
                                         id: enterArea

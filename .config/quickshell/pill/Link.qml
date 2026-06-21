@@ -257,8 +257,8 @@ PillSurface {
                 anchors.fill: parent
                 anchors.margins: nrow.n.image ? 0 : 2 * root.s
                 source: Notifs.iconFor(nrow.n)
-                sourceSize.width: 64
-                sourceSize.height: 64
+                sourceSize.width: 40
+                sourceSize.height: 40
                 fillMode: Image.PreserveAspectCrop
                 smooth: true
                 visible: source.toString().length > 0
@@ -325,14 +325,16 @@ PillSurface {
                     Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                 }
 
-                Text {
+                GlyphIcon {
                     id: nrowX
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    width: 11 * root.s
+                    height: 11 * root.s
                     opacity: nrowHover.hovered ? 1 : 0
-                    text: "✕"
+                    name: "close"
                     color: nrowXArea.containsMouse ? Theme.cream : Theme.dim
-                    font.pixelSize: 10 * root.s
+                    stroke: 1.9
                     Behavior on opacity { NumberAnimation { duration: Motion.fast } }
 
                     MouseArea {
@@ -767,8 +769,8 @@ PillSurface {
                                             anchors.fill: parent
                                             anchors.margins: group.modelData.newest.image ? 0 : 3 * root.s
                                             source: Notifs.iconFor(group.modelData.newest)
-                                            sourceSize.width: 64
-                                            sourceSize.height: 64
+                                            sourceSize.width: 40
+                                            sourceSize.height: 40
                                             fillMode: Image.PreserveAspectCrop
                                             smooth: true
                                             visible: source.toString().length > 0
@@ -829,25 +831,29 @@ PillSurface {
                                         textFormat: Text.PlainText
                                     }
 
-                                    Text {
+                                    GlyphIcon {
                                         id: headChev
                                         anchors.right: parent.right
                                         anchors.rightMargin: 8 * root.s
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: group.expanded ? "▾" : "▸"
+                                        width: 11 * root.s
+                                        height: 11 * root.s
+                                        name: group.expanded ? "chevron-down" : "chevron-right"
                                         color: Theme.faint
-                                        font.pixelSize: 9 * root.s
+                                        stroke: 2
                                     }
 
-                                    Text {
+                                    GlyphIcon {
                                         id: headX
                                         anchors.right: headChev.left
                                         anchors.rightMargin: 7 * root.s
                                         anchors.verticalCenter: parent.verticalCenter
+                                        width: 11 * root.s
+                                        height: 11 * root.s
                                         opacity: headHover.hovered ? 1 : 0
-                                        text: "✕"
+                                        name: "close"
                                         color: headXArea.containsMouse ? Theme.cream : Theme.dim
-                                        font.pixelSize: 10 * root.s
+                                        stroke: 1.9
                                         Behavior on opacity { NumberAnimation { duration: Motion.fast } }
 
                                         MouseArea {
@@ -904,16 +910,6 @@ PillSurface {
                     font.family: Theme.fontJp
                     font.weight: Font.Medium
                     font.pixelSize: 32 * root.s
-                }
-                GlyphIcon {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: !Flags.showGlyphs
-                    width: 32 * root.s
-                    height: 32 * root.s
-                    name: "dnd"
-                    color: Theme.ghost
-                    opacity: 0.55
-                    stroke: 1.7
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter

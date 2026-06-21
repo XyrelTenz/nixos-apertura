@@ -88,8 +88,6 @@ awww img "$pic" \
 mkdir -p "$(dirname "$STATE")"
 printf '%s\n' "$pic" > "$STATE"
 
+python3 "$(dirname "$0")/wallcolors.py" "$pic" >/dev/null 2>&1 || true
 matugen image "$pic" --source-color-index 0 >/dev/null 2>&1 || true
-qs -c pill ipc call pill reload >/dev/null 2>&1 || true
-qs -c lock ipc call lock reload >/dev/null 2>&1 || true
-qs -c sidebar ipc call sidebar reload >/dev/null 2>&1 || true
 hyprctl reload >/dev/null 2>&1 || true

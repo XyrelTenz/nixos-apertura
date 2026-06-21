@@ -2,10 +2,16 @@
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 
 ShellRoot {
     id: root
+
+    IpcHandler {
+        target: "topbar"
+        function reload(): void { Quickshell.reload(true); }
+    }
 
     function refresh() {
         Hyprland.refreshMonitors();

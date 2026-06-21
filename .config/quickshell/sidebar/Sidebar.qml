@@ -11,9 +11,6 @@ Item {
     readonly property real panelWidth: 372 * s
     implicitWidth: panelWidth
 
-    property real slideOffset: opened ? 0 : panelWidth + 20 * s
-    Behavior on slideOffset { NumberAnimation { duration: 350; easing.type: Easing.OutCubic } }
-
     focus: opened
     onOpenedChanged: if (opened) forceActiveFocus()
     onTabChanged: if (tab === 1) Notifs.markAllSeen()
@@ -29,12 +26,8 @@ Item {
         border.color: Theme.border
 
         opacity: sidebar.opened ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
-
-        transform: Translate { x: sidebar.slideOffset }
 
         gradient: Gradient {
-        
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
         }
@@ -93,7 +86,5 @@ Item {
         current: sidebar.tab
         showDot: Notifs.unread > 0
         onSelect: function(idx) { sidebar.tab = idx; }
-
-        transform: Translate { x: sidebar.slideOffset }
     }
 }

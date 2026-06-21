@@ -238,14 +238,11 @@ Item {
 
         Text {
             visible: root.devices.length === 0
-            anchors.left: parent.left
-            anchors.leftMargin: 6 * root.s
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.discovering ? "Scanning…" : "No devices"
-            color: Theme.dim
+            anchors.centerIn: parent
+            text: root.discovering ? "Scanning…" : "No devices found"
+            color: Theme.faint
             font.family: Theme.font
-            font.pixelSize: 11 * root.s
-            font.weight: Font.Medium
+            font.pixelSize: 10.5 * root.s
         }
 
         Flickable {
@@ -377,20 +374,30 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: !devItem.isPaired && !devItem.pairing
                                     radius: 999
-                                    color: Theme.tileBg
+                                    color: pairArea.containsMouse ? Theme.frameBg : Theme.tileBg
                                     border.width: 1
-                                    border.color: Theme.border
+                                    border.color: pairArea.containsMouse ? Theme.vermDim : Theme.border
                                     height: 18 * root.s
                                     width: pairText.implicitWidth + 16 * root.s
+                                    Behavior on color { ColorAnimation { duration: Motion.fast } }
+                                    Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
                                     Text {
                                         id: pairText
                                         anchors.centerIn: parent
                                         text: "Pair"
-                                        color: Theme.dim
+                                        color: pairArea.containsMouse ? Theme.cream : Theme.dim
                                         font.family: Theme.font
                                         font.pixelSize: 9.5 * root.s
                                         font.weight: Font.DemiBold
+                                    }
+
+                                    MouseArea {
+                                        id: pairArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.activateDevice(devItem.modelData)
                                     }
                                 }
                             }

@@ -19,6 +19,7 @@
       numpy
       opencv4
       typer
+      typing-extensions
     ];
     pythonRemoveDeps = [ "opencv-python" ];
     pythonRelaxDeps = [ "typer" ];
@@ -41,7 +42,7 @@ in {
 
     kdePackages.dolphin
     kdePackages.qtsvg
-    firefox
+    brave
 
     neovim-11
     android-tools
@@ -101,13 +102,15 @@ in {
     img2art
     vlc
     ddcutil
+    gpu-screen-recorder
+    ffmpeg
     (symlinkJoin {
       name = "quickshell-wrapped";
       paths = [quickshell];
       nativeBuildInputs = [makeWrapper];
       postBuild = ''
         wrapProgram $out/bin/qs \
-          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugenPkg awww cava bash brightnessctl grim slurp satty hyprpicker wl-clipboard cliphist imagemagick jq ddcutil]}" \
+          --prefix PATH : "${lib.makeBinPath [(python3.withPackages (ps: [ps.pyxdg])) bluez networkmanager wireplumber matugenPkg awww cava bash brightnessctl grim slurp satty hyprpicker wl-clipboard cliphist imagemagick jq ddcutil gpu-screen-recorder ffmpeg]}" \
           --prefix QML2_IMPORT_PATH : "${kdePackages.qt5compat}/lib/qt-6/qml" \
           --prefix QT_PLUGIN_PATH : "${kdePackages.qtimageformats}/lib/qt-6/plugins"
       '';

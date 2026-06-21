@@ -56,15 +56,6 @@ PillSurface {
                     font.weight: Font.Medium
                     font.pixelSize: 16 * root.s
                 }
-                GlyphIcon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !Flags.showGlyphs
-                    width: 16 * root.s
-                    height: 16 * root.s
-                    name: "battery"
-                    color: Theme.cream
-                    stroke: 1.8
-                }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "BATTERY"

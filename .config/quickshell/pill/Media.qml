@@ -132,15 +132,15 @@ PillSurface {
         onFinished: coverPair.settle()
     }
 
-    component IconSkip: GlyphIcon {
+    component KanjiSkip: Text {
         id: skip
 
         property bool can: false
         signal activated()
 
         anchors.verticalCenter: parent.verticalCenter
-        width: 14 * root.s
-        height: width
+        font.family: Theme.fontJp
+        font.pixelSize: 13 * root.s
         color: skipArea.containsMouse ? Theme.cream : Theme.dim
         opacity: skip.can ? 1 : 0.4
         Behavior on color { ColorAnimation { duration: Motion.fast } }
@@ -341,8 +341,8 @@ PillSurface {
             anchors.bottomMargin: 38 * root.s
             spacing: 14 * root.s
 
-            IconSkip {
-                name: "prev"
+            KanjiSkip {
+                text: "前"
                 can: root.hasPlayer && root.player.canGoPrevious
                 onActivated: if (root.player) root.player.previous()
             }
@@ -370,12 +370,13 @@ PillSurface {
                     GradientStop { position: 1.0; color: root.mix(Theme.vermDeep, Theme.tileBg, 0.55 * (1 - seal.sat)) }
                 }
 
-                GlyphIcon {
+                Text {
                     anchors.centerIn: parent
-                    width: 14 * root.s
-                    height: width
-                    name: root.playing ? "pause" : "play"
+                    text: root.playing ? "奏" : "休"
                     color: Theme.bright
+                    font.family: Theme.fontJp
+                    font.pixelSize: 16 * root.s
+                    font.weight: Font.DemiBold
                 }
 
                 MouseArea {
@@ -389,8 +390,8 @@ PillSurface {
                 }
             }
 
-            IconSkip {
-                name: "next"
+            KanjiSkip {
+                text: "次"
                 can: root.hasPlayer && root.player.canGoNext
                 onActivated: if (root.player) root.player.next()
             }

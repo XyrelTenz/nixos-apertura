@@ -11,6 +11,7 @@ return {
 
 	{
 		"neovim/nvim-lspconfig",
+		event = { "BufReadPost", "BufNewFile" },
 		config = function()
 			require("configs.lspconfig")
 		end,
@@ -91,13 +92,13 @@ return {
 	},
 
 	--- Code Action Ligh Bulb
-	{ "kosayoda/nvim-lightbulb", lazy = false, priority = 1000, opts = { autocmd = { enabled = true } } },
+	{ "kosayoda/nvim-lightbulb", event = "LspAttach", priority = 1000, opts = { autocmd = { enabled = true } } },
 
 	{ import = "nvchad.blink.lazyspec" },
 	-- Auto Give Commit Messages
 	{
 		"ajatdarojat45/commitmate.nvim",
-		lazy = false,
+		event = "VeryLazy",
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			"CopilotC-Nvim/CopilotChat.nvim",
@@ -121,12 +122,26 @@ return {
 	--- Project for Rooter
 	{
 		"ahmedkhalf/project.nvim",
-		lazy = false,
+		event = "VeryLazy",
 		config = function()
 			require("project_nvim").setup({
 				detection_methods = { "lsp", "pattern" },
 				patterns = { ".git", "package.json", "pubspec.yaml", "build.gradle.kts", "module.yaml" },
 			})
+			local ok, telescope = pcall(require, "telescope")
+			if ok then
+				pcall(telescope.load_extension, "projects")
+			else
+				vim.api.nvim_create_autocmd("User", {
+					group = vim.api.nvim_create_augroup("ProjectTelescopeLazy", { clear = true }),
+					pattern = "LazyLoad",
+					callback = function(event)
+						if event.data == "telescope.nvim" then
+							pcall(require("telescope").load_extension, "projects")
+						end
+					end,
+				})
+			end
 		end,
 	},
 
@@ -190,5 +205,25 @@ return {
 				"vue",
 			},
 		},
+	},
+	{
+		"nvim-telescope/telescope.nvim",
+		opts = {
+			defaults = {
+				file_ignore_patterns = { "node_modules", "%.git/" },
+			},
+			pickers = {
+				find_files = {
+					hidden = true,
+				},
+			},
+		},
+	},
+	{
+		"windwp/nvim-ts-autotag",
+		event = { "BufReadPre", "BufNewFile" },
+		config = function()
+			require("nvim-ts-autotag").setup()
+		end,
 	},
 }

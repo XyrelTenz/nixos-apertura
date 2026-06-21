@@ -74,7 +74,7 @@ Item {
                     height: 16 * tray.s
                     fillMode: Image.PreserveAspectFit
                     smooth: true
-                    mipmap: true
+                    cache: true
                     asynchronous: true
                 }
 
@@ -188,7 +188,7 @@ Item {
                 sourceSize.height: 30
                 fillMode: Image.PreserveAspectFit
                 smooth: true
-                mipmap: true
+                cache: true
                 visible: mrow.entryData.icon
             }
 

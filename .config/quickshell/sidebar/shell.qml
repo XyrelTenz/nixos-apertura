@@ -10,12 +10,6 @@ ShellRoot {
     property bool shown: false
     property string targetMonitor: ""
 
-    Connections {
-        target: Quickshell
-        function onReloadCompleted() { Quickshell.inhibitReloadPopup(); }
-        function onReloadFailed(errorString) { Quickshell.inhibitReloadPopup(); }
-    }
-
     FileView {
         id: vibState
         path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ricelin/nvibrant-value"
@@ -66,7 +60,7 @@ ShellRoot {
             if (mon && mon.length) root.targetMonitor = mon;
             root.shown = true;
         }
-        function reload(): void { Quickshell.reload(false); }
+        function reload(): void { Quickshell.reload(true); }
     }
 
     Variants {

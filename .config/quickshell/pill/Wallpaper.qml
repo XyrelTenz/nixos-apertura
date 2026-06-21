@@ -22,6 +22,24 @@ PillSurface {
     property int focusIndex: 0
 
     /**
+     * Gesture hint visibility. Hidden while the focus is moving so paging
+     * through wallpapers stays clean; the dwell timer reveals it only once the
+     * pick has been held still, so it reads as a quiet caption, not a nag.
+     */
+    property bool hintShown: false
+
+    onFocusIndexChanged: {
+        hintShown = false;
+        hintDwell.restart();
+    }
+
+    Timer {
+        id: hintDwell
+        interval: 600
+        onTriggered: root.hintShown = true
+    }
+
+    /**
      * Continuous view position chasing focusIndex. The strip renders from this
      * single value, so any input rate (40Hz key autorepeat, wheel bursts) stays
      * coherent: lag is bounded by the chase time constant, not piled up across
@@ -86,6 +104,8 @@ PillSurface {
     onActiveChanged: if (active) {
         Walls.refresh();
         centerOnCurrent();
+        hintShown = false;
+        hintDwell.restart();
     }
 
     Connections {
@@ -110,20 +130,6 @@ PillSurface {
         font.pixelSize: 30 * root.s
     }
 
-    GlyphIcon {
-        anchors.left: parent.left
-        anchors.leftMargin: 20 * root.s
-        anchors.verticalCenter: parent.verticalCenter
-        z: 0
-        visible: !Flags.showGlyphs
-        width: 30 * root.s
-        height: 30 * root.s
-        name: "image"
-        color: Theme.ghost
-        opacity: 0.55
-        stroke: 1.7
-    }
-
     Repeater {
         model: Walls.entries
 
@@ -141,7 +147,8 @@ PillSurface {
             readonly property real corner: (8 + 2 * Math.max(0, 1 - ao)) * root.s
 
             readonly property real hold: trashHeat.hold
-            readonly property bool holding: trashHeat.holding
+            readonly property bool committing: trashHeat.hold >= trashHeat.tapThreshold
+            readonly property real commitProgress: Math.max(0, (trashHeat.hold - trashHeat.tapThreshold) / (1 - trashHeat.tapThreshold))
 
             /**
              * Fade a tile out as its outer edge nears the clipped strip
@@ -183,6 +190,7 @@ PillSurface {
                     anchors.fill: parent
                     source: tile.ao <= 6 ? "file://" + tile.modelData.thumb : ""
                     sourceSize.width: 512
+                    sourceSize.height: 220
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     smooth: true
@@ -199,8 +207,8 @@ PillSurface {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    height: card.height * tile.hold
-                    visible: tile.holding
+                    height: card.height * tile.commitProgress
+                    visible: tile.committing
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Qt.alpha(Theme.vermBurn, 0.66) }
                         GradientStop { position: 0.74; color: Qt.alpha(Theme.vermLit, 0.30) }
@@ -212,7 +220,7 @@ PillSurface {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         height: 2 * root.s
-                        opacity: Math.min(1, tile.hold * 3)
+                        opacity: Math.min(1, tile.commitProgress * 3)
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop { position: 0.0; color: Qt.alpha(Theme.flameGlow, 0.0) }
@@ -228,13 +236,13 @@ PillSurface {
                 radius: tile.corner
                 color: "transparent"
                 border.width: 1
-                border.color: tile.holding ? Theme.vermLit : Theme.border
+                border.color: tile.committing ? Theme.vermLit : Theme.border
                 Behavior on border.color { ColorAnimation { duration: Motion.fast } }
             }
 
             HeatHold {
                 id: trashHeat
-                tapThreshold: 0.5
+                tapThreshold: 0.25
                 onConfirmed: Walls.trash(tile.modelData.path)
                 onTapped: root.activate()
             }
@@ -258,6 +266,21 @@ PillSurface {
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 10.5 * root.s
+    }
+
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 11 * root.s
+        visible: Walls.count > 0
+        opacity: root.hintShown ? 1 : 0
+        text: "tap to set · hold to delete"
+        color: Theme.subtle
+        font.family: Theme.font
+        font.pixelSize: 10 * root.s
+        font.weight: Font.Medium
+        font.letterSpacing: 0.4 * root.s
+        Behavior on opacity { NumberAnimation { duration: Motion.standard } }
     }
 
     MouseArea {

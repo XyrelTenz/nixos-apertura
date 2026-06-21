@@ -129,7 +129,6 @@ PillSurface {
         anchors.left: parent.left
         anchors.right: parent.right
         s: root.s
-        icon: "search"
         kanji: "探"
         placeholder: "Search apps"
         counterText: root.results.length + " / " + root.totalCount

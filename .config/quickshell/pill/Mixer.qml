@@ -61,14 +61,24 @@ PillSurface {
      * layer-shell surface, so a non-blocking HoverHandler is the only hover
      * source. Its pointer x maps to a fader column and drives keyboard focus.
      */
-    readonly property int hoverIndex: surfaceHovered && width > 0
+    readonly property int hoverIndex: surfaceHovered && width > 0 && faders.length > 0
         && hoverTracker.point.position.y >= faderRow.y
         ? Math.max(0, Math.min(faders.length - 1, Math.floor(hoverTracker.point.position.x / (width / faders.length))))
         : -1
-    onHoverIndexChanged: if (hoverIndex >= 0) focusIndex = hoverIndex
+    onHoverIndexChanged: if (hoverIndex >= 0 && !keyLatch.running) focusIndex = hoverIndex
 
     HoverHandler {
         id: hoverTracker
+    }
+
+    /**
+     * Brief keyboard-nav precedence: an arrow keypress latches focus for
+     * Motion.standard so a stray pointer move doesn't yank the target away
+     * mid-navigation. Hover resumes driving focus once it lapses.
+     */
+    Timer {
+        id: keyLatch
+        interval: Motion.standard
     }
 
     onActiveChanged: focusIndex = active ? 0 : -1
@@ -81,6 +91,7 @@ PillSurface {
         if (focusIndex < 0)
             return false;
         faders[focusIndex].step(deltaPct);
+        keyLatch.restart();
         return true;
     }
 
@@ -91,6 +102,7 @@ PillSurface {
     function moveFocus(dir) {
         focusIndex = focusIndex < 0 ? (dir > 0 ? 0 : faders.length - 1)
                                     : (focusIndex + dir + faders.length) % faders.length;
+        keyLatch.restart();
     }
 
     Component.onCompleted: Devices.detect()
@@ -197,15 +209,6 @@ PillSurface {
                 font.family: Theme.fontJp
                 font.weight: Font.Medium
                 font.pixelSize: 16 * root.s
-            }
-            GlyphIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: !Flags.showGlyphs
-                width: 16 * root.s
-                height: 16 * root.s
-                name: "mixer"
-                color: Theme.cream
-                stroke: 1.7
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter

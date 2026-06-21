@@ -15,6 +15,7 @@ Singleton {
     property var history: []
     property var userDismissed: ({})
     property var expireAt: ({})
+    property var hookedIds: ({})
 
     readonly property var tracked: server.trackedNotifications.values
     readonly property int count: tracked.length + history.length
@@ -77,7 +78,7 @@ Singleton {
         var names = [];
         if (img.indexOf("image://icon/") === 0) {
             names.push(img.substring(13));
-        } else if (img.length) {
+        } else if (img.length && !/\.svg$/i.test(img)) {
             return img;
         }
         names.push(n.appIcon, n.desktopEntry, (n.appName || n.app || "").toLowerCase());
@@ -183,7 +184,20 @@ Singleton {
         root.expandedApps = e;
     }
 
+    /**
+     * Bind the history-snapshot handler to a notification's `closed` signal once.
+     * `keepOnReload` re-runs Component.onCompleted on every QS reload over the
+     * still-tracked notifications, so the id set gates re-hooks: without it each
+     * reload would stack another handler and a single close would push duplicate
+     * history rows. The id is cleared inside the handler so a later notification
+     * reusing the id re-hooks cleanly.
+     */
     function hookClosed(n) {
+        if (root.hookedIds[n.id])
+            return;
+        var hooked = Object.assign({}, root.hookedIds);
+        hooked[n.id] = true;
+        root.hookedIds = hooked;
         n.closed.connect(function(reason) {
             if (!root.userDismissed[n.id])
                 root.history = [{
@@ -209,6 +223,9 @@ Singleton {
             var c = Object.assign({}, root.expireAt);
             delete c[n.id];
             root.expireAt = c;
+            var h = Object.assign({}, root.hookedIds);
+            delete h[n.id];
+            root.hookedIds = h;
         });
     }
 

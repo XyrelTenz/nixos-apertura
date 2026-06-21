@@ -23,6 +23,7 @@ Item {
     property real gap: 4 * s
 
     readonly property var range: {
+        if (screenName === "DP-1" || screenName === "eDP-1") return [1, 2, 3, 4, 5];
         if (screenName === "HDMI-A-1") return [6, 7, 8, 9, 10];
         return [1, 2, 3, 4, 5];
     }

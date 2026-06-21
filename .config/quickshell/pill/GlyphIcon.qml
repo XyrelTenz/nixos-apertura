@@ -7,7 +7,8 @@ import "Singletons"
  * depends on the system icon theme or external asset files. Set `name` to pick a
  * glyph, `color` to tint it; stroked glyphs use `stroke` width, filled glyphs
  * (media transport) paint solid. Paths live in a 24x24 space and scale to the
- * item's size.
+ * item's size. Each glyph's actual bounding box is centred within the item on
+ * both axes, so glyphs with differing path extents share one optical baseline.
  */
 Item {
     id: root
@@ -28,7 +29,7 @@ Item {
         "mic-off": { d: "M9 9V6a3 3 0 0 1 6 0v3 M15 12v0a3 3 0 0 1-5.6 1.5 M5 11a7 7 0 0 0 11 5.5 M12 19v3 M3 3l18 18", fill: false },
         "lock": { d: "M6 10h12a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5v-6A1.5 1.5 0 0 1 6 10z M8.5 10V7a3.5 3.5 0 0 1 7 0v3", fill: false },
         "lock-round": { d: "M8 8.5H16A3 3 0 0 1 19 11.5V15.5A3 3 0 0 1 16 18.5H8A3 3 0 0 1 5 15.5V11.5A3 3 0 0 1 8 8.5Z M8.4 8.5V5.7A3.6 3.6 0 0 1 15.6 5.7V8.5", fill: false },
-        "bolt": { d: "M13 2L3 14h9l-1 8 10-12h-9l1-8z", fill: true },
+        "lock-outline": { d: "M6.4 9.5H17.6A2.4 2.4 0 0 1 20 11.9V17.6A2.4 2.4 0 0 1 17.6 20H6.4A2.4 2.4 0 0 1 4 17.6V11.9A2.4 2.4 0 0 1 6.4 9.5Z M7.5 9.5V6A4.5 4.5 0 0 1 16.5 6V9.5", fill: false },
         "logout": { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9", fill: false },
         "suspend": { d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z", fill: false },
         "reboot": { d: "M21 12a9 9 0 1 1-2.6-6.4 M21 3v5h-5", fill: false },
@@ -47,30 +48,38 @@ Item {
         "awake": { d: "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", fill: false },
         "chevron-left": { d: "M14 6l-6 6 6 6", fill: false },
         "chevron-right": { d: "M10 6l6 6-6 6", fill: false },
+        "chevron-down": { d: "M6 10l6 6 6-6", fill: false },
+        "chevron-up": { d: "M6 14l6-6 6 6", fill: false },
+        "close": { d: "M6 6l12 12 M18 6l-12 12", fill: false },
+        "return": { d: "M20 6v6a3 3 0 0 1-3 3H5 M9 11l-4 4 4 4", fill: false },
         "wifi": { d: "M4 9.5C9 4.8 15 4.8 20 9.5 M7 13c3-2.8 7-2.8 10 0 M11 16.8a1.4 1.4 0 1 0 2 0a1.4 1.4 0 1 0-2 0", fill: false },
         "ethernet": { d: "M5 5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 5 5z M8 19h8 M12 16v3 M8 8.5v3.5 M12 8.5v3.5 M16 8.5v3.5", fill: false },
         "bluetooth": { d: "M12 2.8v18.4 M12 2.8l5.2 4.6-10.4 9 M12 21.2l5.2-4.6-10.4-9", fill: false },
         "inbox": { d: "M6 16v-5a6 6 0 0 1 12 0v5 M4 16h16 M10.5 20a1.8 1.8 0 0 0 3 0", fill: false },
+        "bolt": { d: "M13 2 4 13.5h6.5L11 22l9-11.5h-6.5z", fill: false },
         "hotspot": { d: "M12 12a1.3 1.3 0 1 0 0.01 0 M8.8 8.5A5 5 0 0 0 8.8 15.5 M15.2 8.5A5 5 0 0 1 15.2 15.5 M6 6A9 9 0 0 0 6 18 M18 6A9 9 0 0 1 18 18", fill: false },
-        "video": { d: "M2 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M16 12l6-4v8z", fill: false },
-        "calendar": { d: "M4 5h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M2 10h20 M16 3v4 M8 3v4", fill: false },
-        "clock": { d: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 6v6l4 2", fill: false },
-        "trash": { d: "M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6", fill: false },
-        "image": { d: "M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5-4 4-3-3-6 6", fill: false },
-        "search": { d: "M10 16a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M14.5 14.5l5.5 5.5", fill: false },
-        "clipboard": { d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1z", fill: false },
-        "sidebar": { d: "M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M15 3v18", fill: false },
         "cog": { d: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z", fill: false },
-        "battery": { d: "M2 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M23 11v2", fill: false }
+        "clock": { d: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 7v5l3.5 2", fill: false },
+        "cursor": { d: "M5 3l6 16 2-6 6-2L5 3z", fill: false },
+        "video": { d: "M3 7.5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 15 7.5v9A1.5 1.5 0 0 1 13.5 18h-9A1.5 1.5 0 0 1 3 16.5z M15 10l6-3v10l-6-3z", fill: false },
+        "record": { d: "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z", fill: true }
     })
 
     readonly property var g: glyphs[name] !== undefined ? glyphs[name] : ({ d: "", fill: false })
 
     Shape {
+        id: glyph
+
         width: 24
         height: 24
         scale: root.u
         transformOrigin: Item.TopLeft
+        x: glyph.boundingRect.width > 0
+           ? root.width / 2 - (glyph.boundingRect.x + glyph.boundingRect.width / 2) * root.u
+           : (root.width - 24 * root.u) / 2
+        y: glyph.boundingRect.height > 0
+           ? root.height / 2 - (glyph.boundingRect.y + glyph.boundingRect.height / 2) * root.u
+           : (root.height - 24 * root.u) / 2
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
 

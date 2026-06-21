@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Networking
 import "Singletons"
@@ -42,6 +41,8 @@ Item {
     readonly property bool linkOpen: surface === "link"
     readonly property bool batteryOpen: surface === "battery"
     readonly property bool settingsOpen: surface === "settings"
+    readonly property bool recorderOpen: surface === "recorder"
+    readonly property bool sysmonOpen: surface === "sysmon"
     readonly property bool hasMedia: Mpris.players.values.length > 0
 
     /**
@@ -63,6 +64,17 @@ Item {
     readonly property bool toastActive: Notifs.popups.length > 0
     readonly property bool osdActive: osd.flashing
 
+    /**
+     * Quick-record overlays belong only to the focused monitor the keybind
+     * targeted, so a single chooser and a single countdown toast appear. The
+     * standalone chooser is suppressed while the morphing recorder surface owns the
+     * pill; the countdown toast yields to the surface too (the surface shows its
+     * own in-bar countdown there).
+     */
+    readonly property bool quickHere: ScreenRec.quickMon === screenName
+    readonly property bool quickChoosing: quickHere && ScreenRec.quickChoosing && !surfaceOpen
+    readonly property bool quickCounting: quickHere && ScreenRec.counting && !recorderOpen
+
     readonly property real restW: 160 * s
     readonly property real restH: 38 * s
     readonly property real hoverPad: 20 * s
@@ -77,30 +89,53 @@ Item {
     readonly property real clipboardW: 360 * s
     readonly property real clipboardH: 332 * s
     readonly property real wallpaperW: 720 * s
-    readonly property real wallpaperH: 146 * s
+    readonly property real wallpaperH: 172 * s
     readonly property real powerW: 330 * s
     readonly property real powerH: 150 * s
     readonly property real mediaW: 390 * s
     readonly property real mediaH: 150 * s
     readonly property real batteryW: 316 * s
     readonly property real settingsW: 392 * s
+    readonly property real recorderW: 384 * s
+    readonly property real sysmonW: 392 * s
     readonly property real toastW: 342 * s
+    readonly property real quickChooseW: 344 * s
+    readonly property real quickChooseH: 76 * s
+    readonly property real quickCountW: 150 * s
+    readonly property real quickCountH: 64 * s
     readonly property real restCorner: 18 * s
     readonly property real openCorner: 22 * s
 
-    readonly property string mode: calendarOpen ? "calendar"
-        : (launcherOpen ? "launcher"
-        : (clipboardOpen ? "clipboard"
-        : (wallpaperOpen ? "wallpaper"
-        : (powerOpen ? "power"
-        : (mediaOpen ? "media"
-        : (mixerOpen ? "mixer"
-        : (linkOpen ? "link"
-        : (batteryOpen ? "battery"
-        : (settingsOpen ? "settings"
+    /**
+     * Single source of truth for every morphing surface, keyed by its `surface`
+     * string. Each entry owns the surface's target size (a thunk so the geometry
+     * it reads registers as a live dep of targetSize) and the surface item Ame
+     * anchors to while it is open (null = Ame falls back to the pill's own hover
+     * or wake anchor). `mode`, `targetSize` and `ameSurface` all derive from this,
+     * so adding a surface is one entry here plus its child item — no parallel
+     * ternary chains to keep in lockstep.
+     */
+    readonly property var surfaces: ({
+        calendar:  { size: () => Qt.size(calendarW, calendarH), ame: calendar },
+        launcher:  { size: () => Qt.size(launcherW, launcherH), ame: launcher },
+        clipboard: { size: () => Qt.size(clipboardW, clipboardH), ame: clip },
+        wallpaper: { size: () => Qt.size(wallpaperW, wallpaperH), ame: null },
+        power:     { size: () => Qt.size(powerW, powerH), ame: power },
+        media:     { size: () => Qt.size(mediaW, mediaH), ame: media },
+        mixer:     { size: () => Qt.size(mixerW, mixerH), ame: mixer },
+        link:      { size: () => Qt.size(link.desiredW, link.implicitHeight + 26 * s), ame: link },
+        battery:   { size: () => Qt.size(batteryW, battery.implicitHeight + 26 * s), ame: battery },
+        settings:  { size: () => Qt.size(settingsW, settings.implicitHeight + 29 * s), ame: settings },
+        recorder:  { size: () => Qt.size(recorderW, recorder.implicitHeight + 33 * s), ame: recorder },
+        sysmon:    { size: () => Qt.size(sysmonW, sysmon.implicitHeight + 33 * s), ame: sysmon }
+    })
+
+    readonly property string mode: surfaceOpen && surfaces[surface] !== undefined ? surface
+        : (quickChoosing ? "quickChoose"
+        : (quickCounting ? "quickCount"
         : (osdActive && !held ? "osd"
         : (toastActive && !held ? "toast"
-        : (expanded ? "hover" : "rest"))))))))))))
+        : (expanded ? "hover" : "rest")))))
 
     signal requestSurface(string name)
     signal requestClose()
@@ -120,6 +155,73 @@ Item {
     function mixerFocusMove(dir) {
         if (pill.mixerOpen)
             mixer.moveFocus(dir);
+    }
+
+    /**
+     * Forward an arrow-key nudge to the open recorder's focused audio fader.
+     * Returns true when the recorder is open and a revealed fader consumed it.
+     */
+    function recorderStep(deltaPct) {
+        return pill.recorderOpen ? recorder.stepFocused(deltaPct) : false;
+    }
+
+    /**
+     * Move the open settings surface's keyboard row focus by `dir` (+1 down, -1
+     * up), carrying the soul seam. Returns true when settings is open and
+     * consumed the step.
+     */
+    function settingsMove(dir) {
+        if (!pill.settingsOpen)
+            return false;
+        settings.kbMove(dir);
+        return true;
+    }
+
+    /**
+     * Step the focused settings row's control: a segmented choice cycles by
+     * `dir`, a toggle is set on (dir > 0) or off. Returns true when consumed.
+     */
+    function settingsAdjust(dir) {
+        if (!pill.settingsOpen)
+            return false;
+        settings.kbAdjust(dir);
+        return true;
+    }
+
+    /**
+     * Flip the focused settings row when it is a toggle. Returns true when
+     * settings is open.
+     */
+    function settingsActivate() {
+        if (!pill.settingsOpen)
+            return false;
+        settings.kbActivate();
+        return true;
+    }
+
+    /**
+     * A tile was picked in the standalone quick-record chooser. Screen with several
+     * monitors flips to the inline sub-choice; otherwise each source kicks off its
+     * resolver (which counts down once the target is ready) and the chooser closes.
+     */
+    function quickChooseSource(kind) {
+        if (kind === "screen") {
+            if (ScreenRec.monitors.length > 1) {
+                ScreenRec.quickScreenChoosing = true;
+                return;
+            }
+            ScreenRec.prepareScreen(pill.screenName);
+        } else if (kind === "window") {
+            ScreenRec.prepareWindow();
+        }
+        ScreenRec.quickChoosing = false;
+        ScreenRec.quickScreenChoosing = false;
+    }
+
+    function quickPickMonitor(name) {
+        ScreenRec.quickChoosing = false;
+        ScreenRec.quickScreenChoosing = false;
+        ScreenRec.prepareScreen(name);
     }
 
     /**
@@ -150,7 +252,40 @@ Item {
             wall.activate();
     }
 
-    onSurfaceOpenChanged: if (surfaceOpen) pinned = false
+    /**
+     * Slide the open power surface's keyboard focus by `dir` tiles; +1 is right
+     * and -1 is left. No-op unless the power surface is open.
+     */
+    function powerMove(dir) {
+        if (pill.powerOpen)
+            power.move(dir);
+    }
+
+    /**
+     * Enter pressed on the open power surface's focused tile: fires a safe tile
+     * at once, latches a destructive tile's heat hold. Returns true when a tile
+     * consumed the key. No-op (false) unless the power surface is open.
+     */
+    function powerPress() {
+        return pill.powerOpen ? power.pressFocused() : false;
+    }
+
+    /**
+     * Enter released on the open power surface: drains an unfinished destructive
+     * hold so a key let go before the fill completes never confirms.
+     */
+    function powerRelease() {
+        if (pill.powerOpen)
+            power.releaseFocused();
+    }
+
+    onSurfaceOpenChanged: if (surfaceOpen) {
+        pinned = false;
+        if (quickHere && ScreenRec.quickChoosing) {
+            ScreenRec.quickChoosing = false;
+            ScreenRec.quickScreenChoosing = false;
+        }
+    }
 
     QtObject {
         id: clock
@@ -171,28 +306,24 @@ Item {
     property real morphRadius: (mode === "rest" || mode === "hover") ? restCorner : openCorner
 
     /**
-     * Target geometry per mode, one entry per surface. Thunks (not plain sizes)
-     * so the properties they read are evaluated inside the targetSize binding and
-     * register as live deps. Adding a surface is one line here.
+     * Target geometry for the non-surface morph modes. Surface sizes come from
+     * the `surfaces` descriptor; these three are the pill's own modes that have no
+     * surface item. Thunks so the properties they read register as live deps of
+     * targetSize.
      */
-    readonly property var surfaceSize: ({
-        calendar:  () => Qt.size(calendarW, calendarH),
-        launcher:  () => Qt.size(launcherW, launcherH),
-        clipboard: () => Qt.size(clipboardW, clipboardH),
-        wallpaper: () => Qt.size(wallpaperW, wallpaperH),
-        power:     () => Qt.size(powerW, powerH),
-        media:     () => Qt.size(mediaW, mediaH),
-        mixer:     () => Qt.size(mixerW, mixerH),
-        link:      () => Qt.size(link.desiredW, link.implicitHeight + 26 * s),
-        battery:   () => Qt.size(batteryW, battery.implicitHeight + 26 * s),
-        settings:  () => Qt.size(settingsW, settings.implicitHeight + 29 * s),
-        osd:       () => Qt.size(osd.desiredW, osd.desiredH),
-        toast:     () => Qt.size(toastW, toastLoader.item ? toastLoader.item.implicitHeight + 24 * s : restH),
-        hover:     () => Qt.size(hoverW, hoverH)
+    readonly property var modeSize: ({
+        osd:   () => Qt.size(osd.desiredW, osd.desiredH),
+        toast: () => Qt.size(toastW, toastLoader.item ? toastLoader.item.implicitHeight + 24 * s : restH),
+        hover: () => Qt.size(hoverW, hoverH),
+        quickChoose: () => Qt.size(quickChooseW, quickChooseH),
+        quickCount:  () => Qt.size(quickCountW, quickCountH)
     })
 
     readonly property size targetSize: {
-        const f = surfaceSize[mode];
+        const sf = surfaces[mode];
+        if (sf)
+            return sf.size();
+        const f = modeSize[mode];
         return f ? f() : Qt.size(Math.max(restW, restRow.implicitWidth + 36 * s), restH);
     }
     readonly property real targetW: targetSize.width
@@ -355,18 +486,20 @@ Item {
         const drop = 12 * pill.s;
         if (soulTarget === "wifi")
             return wifiIcon.mapToItem(pill, wifiIcon.width / 2, wifiIcon.height + drop * 0.55);
-        if (soulTarget === "inbox")
-            return inboxIcon.mapToItem(pill, inboxIcon.width / 2, inboxIcon.height + drop * 0.55);
-        if (soulTarget === "record")
-            return recordIcon.mapToItem(pill, recordIcon.width / 2, recordIcon.height + drop * 0.55);
         if (soulTarget === "battery")
             return batteryIcon.mapToItem(pill, batteryIcon.width / 2, batteryIcon.height + drop * 0.55);
+        if (soulTarget === "inbox")
+            return inboxIcon.mapToItem(pill, inboxIcon.width / 2, inboxIcon.height + drop * 0.55);
         if (soulTarget === "mixer")
             return mixerIcon.mapToItem(pill, mixerIcon.width / 2, mixerIcon.height + drop * 0.55);
         if (soulTarget === "power")
             return powerIcon.mapToItem(pill, powerIcon.width / 2, powerIcon.height + drop * 0.55);
         if (soulTarget === "settings")
             return settingsIcon.mapToItem(pill, settingsIcon.width / 2, settingsIcon.height + drop * 0.55);
+        if (soulTarget === "recorder")
+            return recorderIcon.mapToItem(pill, recorderIcon.width / 2, recorderIcon.height + drop * 0.55);
+        if (soulTarget === "sysmon")
+            return sysmonIcon.mapToItem(pill, sysmonIcon.width / 2, sysmonIcon.height + drop * 0.55);
         if (soulTarget === "ws" && soulWsIndex >= 0) {
             void ws.activeName;
             void ws.width;
@@ -377,19 +510,13 @@ Item {
     }
 
     /**
-     * Which open surface owns Ame's anchor, in priority order. Each surface
-     * exports its own `ameForm`/`amePoint`; the pill just picks one and maps it.
-     * Null = nothing open, so Ame falls back to the pill's own hover/wake anchor.
+     * Which open surface owns Ame's anchor. Each surface exports its own
+     * `ameForm`/`amePoint`; the pill picks the open surface's `ame` from the
+     * descriptor and maps it. Null = nothing open (or a surface with no anchor,
+     * e.g. wallpaper), so Ame falls back to the pill's own hover/wake anchor.
      */
-    readonly property var ameSurface: mediaOpen ? media
-        : (launcherOpen ? launcher
-        : (clipboardOpen ? clip
-        : (calendarOpen ? calendar
-        : (mixerOpen ? mixer
-        : (powerOpen ? power
-        : (linkOpen ? link
-        : (batteryOpen ? battery
-        : (settingsOpen ? settings : null))))))))
+    readonly property var ameSurface: (surfaceOpen && surfaces[surface] !== undefined)
+        ? surfaces[surface].ame : null
 
     Ame {
         id: ame
@@ -446,7 +573,7 @@ Item {
     Item {
         id: rest
         anchors.fill: parent
-        opacity: (pill.expanded || pill.mode === "toast" || pill.mode === "osd") ? 0 : Math.pow(pill.morphCloseness, 1.5)
+        opacity: (pill.expanded || pill.mode === "toast" || pill.mode === "osd" || pill.mode === "quickChoose" || pill.mode === "quickCount") ? 0 : Math.pow(pill.morphCloseness, 1.5)
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: pill.mode === "rest" ? Motion.fast : 260 } }
 
@@ -615,93 +742,60 @@ Item {
                     enabled: hover.live
                 }
 
-                Shape {
+                Item {
                     id: dndIcon
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Flags.dnd
                     width: 16 * pill.s
                     height: 16 * pill.s
-                    preferredRendererType: Shape.CurveRenderer
 
-                    ShapePath {
-                        strokeColor: Theme.vermLit
-                        strokeWidth: 1.5 * pill.s
-                        fillColor: "transparent"
-                        capStyle: ShapePath.RoundCap
-                        joinStyle: ShapePath.RoundJoin
-                        startX: 5.2 * pill.s; startY: 12.2 * pill.s
-                        PathLine { x: 12.2 * pill.s; y: 12.2 * pill.s }
-                        PathLine { x: 12.2 * pill.s; y: 7.2 * pill.s }
-                        PathCubic {
-                            control1X: 12.2 * pill.s; control1Y: 5.4 * pill.s
-                            control2X: 11.2 * pill.s; control2Y: 4.0 * pill.s
-                            x: 9.5 * pill.s; y: 3.5 * pill.s
+                    Shape {
+                        id: dndShape
+
+                        width: 16
+                        height: 16
+                        scale: pill.s
+                        transformOrigin: Item.TopLeft
+                        x: dndShape.boundingRect.width > 0
+                           ? dndIcon.width / 2 - (dndShape.boundingRect.x + dndShape.boundingRect.width / 2) * pill.s
+                           : (dndIcon.width - 16 * pill.s) / 2
+                        y: dndShape.boundingRect.height > 0
+                           ? dndIcon.height / 2 - (dndShape.boundingRect.y + dndShape.boundingRect.height / 2) * pill.s
+                           : (dndIcon.height - 16 * pill.s) / 2
+                        preferredRendererType: Shape.CurveRenderer
+
+                        ShapePath {
+                            strokeColor: Theme.vermLit
+                            strokeWidth: 1.5
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            joinStyle: ShapePath.RoundJoin
+                            startX: 5.2; startY: 12.2
+                            PathLine { x: 12.2; y: 12.2 }
+                            PathLine { x: 12.2; y: 7.2 }
+                            PathCubic {
+                                control1X: 12.2; control1Y: 5.4
+                                control2X: 11.2; control2Y: 4.0
+                                x: 9.5; y: 3.5
+                            }
+                        }
+                        ShapePath {
+                            strokeColor: Theme.vermLit
+                            strokeWidth: 1.5
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            startX: 6.8; startY: 13.6
+                            PathLine { x: 9.2; y: 13.6 }
+                        }
+                        ShapePath {
+                            strokeColor: Theme.vermLit
+                            strokeWidth: 1.6
+                            fillColor: "transparent"
+                            capStyle: ShapePath.RoundCap
+                            startX: 3.2; startY: 2.8
+                            PathLine { x: 13.0; y: 13.4 }
                         }
                     }
-                    ShapePath {
-                        strokeColor: Theme.vermLit
-                        strokeWidth: 1.5 * pill.s
-                        fillColor: "transparent"
-                        capStyle: ShapePath.RoundCap
-                        startX: 6.8 * pill.s; startY: 13.6 * pill.s
-                        PathLine { x: 9.2 * pill.s; y: 13.6 * pill.s }
-                    }
-                    ShapePath {
-                        strokeColor: Theme.vermLit
-                        strokeWidth: 1.6 * pill.s
-                        fillColor: "transparent"
-                        capStyle: ShapePath.RoundCap
-                        startX: 3.2 * pill.s; startY: 2.8 * pill.s
-                        PathLine { x: 13.0 * pill.s; y: 13.4 * pill.s }
-                    }
-                }
-
-                Item {
-                    id: inboxIcon
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 17 * pill.s
-                    height: 17 * pill.s
-
-                    GlyphIcon {
-                        anchors.fill: parent
-                        name: "inbox"
-                        color: inboxArea.containsMouse ? Theme.cream : Theme.iconDim
-                        stroke: 1.7
-                    }
-
-                    Rectangle {
-                        visible: Notifs.unread > 0
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.topMargin: -2 * pill.s
-                        anchors.rightMargin: -2 * pill.s
-                        width: 5 * pill.s
-                        height: 5 * pill.s
-                        radius: width / 2
-                        color: Theme.flameGlow
-                    }
-
-                    MouseArea {
-                        id: inboxArea
-                        anchors.fill: parent
-                        anchors.margins: -6 * pill.s
-                        hoverEnabled: true
-                        enabled: hover.live
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            pill.linkInitialView = "main";
-                            pill.requestSurface("link");
-                        }
-                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "inbox"
-                    }
-                }
-
-                ScreenRecord {
-                    id: recordIcon
-                    anchors.verticalCenter: parent.verticalCenter
-                    s: pill.s
-                    onActiveChanged: if (osd.armed) osd.triggerRecordOsd(active)
-                    onHoveredChanged: if (hovered) pill.soulTarget = "record"
                 }
 
                 Row {
@@ -769,6 +863,45 @@ Item {
                     }
                 }
 
+                Item {
+                    id: inboxIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        name: "inbox"
+                        color: inboxArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+
+                    Rectangle {
+                        visible: Notifs.unread > 0
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.topMargin: -2 * pill.s
+                        anchors.rightMargin: -2 * pill.s
+                        width: 5 * pill.s
+                        height: 5 * pill.s
+                        radius: width / 2
+                        color: Theme.flameGlow
+                    }
+
+                    MouseArea {
+                        id: inboxArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            pill.linkInitialView = "main";
+                            pill.requestSurface("link");
+                        }
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "inbox"
+                    }
+                }
 
                 Item {
                     id: mixerIcon
@@ -817,6 +950,84 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: pill.requestSurface("power")
                         onContainsMouseChanged: if (containsMouse) pill.soulTarget = "power"
+                    }
+                }
+
+                Item {
+                    id: sysmonIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        name: "monitor"
+                        color: sysmonArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+
+                    MouseArea {
+                        id: sysmonArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pill.requestSurface("sysmon")
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "sysmon"
+                    }
+                }
+
+                Item {
+                    id: recorderIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        visible: !ScreenRec.recording
+                        name: "video"
+                        color: recorderArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        visible: ScreenRec.recording
+                        width: 12 * pill.s
+                        height: 12 * pill.s
+                        radius: width / 2
+                        color: Theme.verm
+                        SequentialAnimation on opacity {
+                            running: ScreenRec.recording
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.4; duration: 500; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutSine }
+                        }
+                    }
+
+                    MouseArea {
+                        id: recorderArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => {
+                            if (e.button === Qt.RightButton) {
+                                if (ScreenRec.recording)
+                                    ScreenRec.stop();
+                                return;
+                            }
+                            pill.requestSurface("recorder");
+                        }
+                        onDoubleClicked: (e) => {
+                            if (e.button === Qt.LeftButton && ScreenRec.recording)
+                                ScreenRec.stop();
+                        }
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "recorder"
                     }
                 }
 
@@ -929,6 +1140,23 @@ Item {
         onRequestClose: pill.requestClose()
     }
 
+    Recorder {
+        id: recorder
+        s: pill.s
+        screenName: pill.screenName
+        open: pill.recorderOpen
+        morphCloseness: pill.morphCloseness
+        onRequestClose: pill.requestClose()
+    }
+
+    SysmonSurface {
+        id: sysmon
+        s: pill.s
+        open: pill.sysmonOpen
+        morphCloseness: pill.morphCloseness
+        onRequestClose: pill.requestClose()
+    }
+
     Osd {
         id: osd
         anchors.fill: parent
@@ -972,7 +1200,10 @@ Item {
                 s: pill.s
                 live: pill.mode === "toast"
                 notif: Notifs.popups.length > 0 ? Notifs.popups[Notifs.popups.length - 1] : null
-                onOpenCenter: pill.requestSurface("link")
+                onOpenCenter: {
+                    pill.linkInitialView = "main";
+                    pill.requestSurface("link");
+                }
             }
 
             Text {
@@ -985,6 +1216,212 @@ Item {
                 font.pixelSize: 9 * pill.s
                 font.weight: Font.DemiBold
             }
+        }
+    }
+
+    /**
+     * Standalone quick-record source chooser. Driven by the SUPER+D keybind with
+     * no recorder surface open: it grows the pill on the focused monitor only
+     * (mode "quickChoose") and offers the same Screen and Window / Region picks as
+     * the surface. Screen with one monitor resolves at once; several monitors flip
+     * to the inline sub-choice. A pick fires ScreenRec.prepareScreen / prepareWindow
+     * → targetReady → the central countdown, then closes.
+     */
+    Item {
+        id: quickChooser
+        anchors.fill: parent
+        anchors.margins: 6 * pill.s
+        enabled: pill.mode === "quickChoose"
+        opacity: pill.mode === "quickChoose" ? Math.pow(pill.morphCloseness, 1.3) : 0
+        visible: opacity > 0.01
+        Behavior on opacity {
+            NumberAnimation { duration: Motion.standard; easing.type: Motion.easeStandard }
+        }
+
+        Row {
+            id: quickSources
+            anchors.fill: parent
+            visible: !ScreenRec.quickScreenChoosing
+            spacing: 6 * pill.s
+
+            Repeater {
+                model: [
+                    { kind: "screen", label: "Screen", glyph: "monitor" },
+                    { kind: "window", label: "Window / Region", glyph: "video" }
+                ]
+
+                Rectangle {
+                    id: qSrcTile
+                    required property var modelData
+                    width: (quickSources.width - 6 * pill.s) / 2
+                    height: parent.height
+                    radius: 11 * pill.s
+                    color: qSrcArea.containsMouse ? Qt.alpha(Theme.vermLit, 0.16) : Theme.tileBg
+                    border.width: 1
+                    border.color: qSrcArea.containsMouse ? Qt.alpha(Theme.vermLit, 0.5) : Theme.border
+                    Behavior on color { ColorAnimation { duration: Motion.fast } }
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 8 * pill.s
+
+                        GlyphIcon {
+                            width: 16 * pill.s
+                            height: 16 * pill.s
+                            name: qSrcTile.modelData.glyph
+                            color: qSrcArea.containsMouse ? Theme.vermLit : Theme.iconDim
+                            stroke: 1.7
+                        }
+                        Text {
+                            height: 16 * pill.s
+                            verticalAlignment: Text.AlignVCenter
+                            text: qSrcTile.modelData.label
+                            color: qSrcArea.containsMouse ? Theme.cream : Theme.subtle
+                            font.family: Theme.font
+                            font.pixelSize: 11 * pill.s
+                            font.weight: Font.Bold
+                        }
+                    }
+
+                    MouseArea {
+                        id: qSrcArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pill.quickChooseSource(qSrcTile.modelData.kind)
+                    }
+                }
+            }
+        }
+
+        ListView {
+            id: quickScreens
+            anchors.fill: parent
+            anchors.rightMargin: 22 * pill.s
+            visible: ScreenRec.quickScreenChoosing
+            orientation: ListView.Horizontal
+            spacing: 6 * pill.s
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            model: ScreenRec.monitors
+
+            delegate: Rectangle {
+                id: qMonTile
+                required property var modelData
+                width: 152 * pill.s
+                height: quickScreens.height
+                radius: 11 * pill.s
+                color: qMonArea.containsMouse ? Qt.alpha(Theme.vermLit, 0.16) : Theme.tileBg
+                border.width: 1
+                border.color: qMonArea.containsMouse ? Qt.alpha(Theme.vermLit, 0.5) : Theme.border
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 2 * pill.s
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: qMonTile.modelData.name
+                        color: Theme.cream
+                        font.family: Theme.font
+                        font.pixelSize: 11.5 * pill.s
+                        font.weight: Font.Bold
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: qMonTile.modelData.w + " × " + qMonTile.modelData.h
+                        color: Theme.subtle
+                        font.family: Theme.font
+                        font.pixelSize: 9.5 * pill.s
+                        font.features: { "tnum": 1 }
+                    }
+                }
+
+                MouseArea {
+                    id: qMonArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: pill.quickPickMonitor(qMonTile.modelData.name)
+                }
+            }
+        }
+
+        WheelScroller {
+            flick: quickScreens
+            s: pill.s
+            anchors.fill: quickScreens
+            visible: ScreenRec.quickScreenChoosing
+        }
+
+        GlyphIcon {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 5 * pill.s
+            visible: ScreenRec.quickScreenChoosing
+            width: 12 * pill.s
+            height: 12 * pill.s
+            name: "chevron-left"
+            color: qBackArea.containsMouse ? Theme.cream : Theme.faint
+            stroke: 2
+
+            MouseArea {
+                id: qBackArea
+                anchors.fill: parent
+                anchors.margins: -7 * pill.s
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: ScreenRec.quickScreenChoosing = false
+            }
+        }
+    }
+
+    /**
+     * Standalone pre-roll countdown toast. Shown at the pill top on the focused
+     * monitor when the central countdown runs and the recorder surface is closed
+     * (mode "quickCount"): a big flame-glow numeral over a small "GET READY" label.
+     * Tapping cancels. The surface's own in-bar countdown covers the surface case.
+     */
+    Item {
+        id: quickCount
+        anchors.fill: parent
+        enabled: pill.mode === "quickCount"
+        opacity: pill.mode === "quickCount" ? Math.pow(pill.morphCloseness, 1.3) : 0
+        visible: opacity > 0.01
+        Behavior on opacity {
+            NumberAnimation { duration: Motion.standard; easing.type: Motion.easeStandard }
+        }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 1 * pill.s
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: ScreenRec.countdown
+                color: Theme.flameGlow
+                font.family: Theme.font
+                font.pixelSize: 28 * pill.s
+                font.weight: Font.ExtraBold
+                font.features: { "tnum": 1 }
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "GET READY"
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 8.5 * pill.s
+                font.weight: Font.Bold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.6 * pill.s
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: ScreenRec.cancel()
         }
     }
 

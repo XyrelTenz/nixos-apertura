@@ -1,11 +1,3 @@
-function globalToLocal(point, screenX, screenY) {
-    return { x: point.x - screenX, y: point.y - screenY };
-}
-
-function localToGlobal(point, screenX, screenY) {
-    return { x: point.x + screenX, y: point.y + screenY };
-}
-
 function intersectRect(globalRect, screenRect) {
     var gx1 = globalRect.x;
     var gy1 = globalRect.y;
@@ -39,5 +31,5 @@ function rectFromPoints(a, b) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { globalToLocal, localToGlobal, intersectRect, rectFromPoints };
+    module.exports = { intersectRect, rectFromPoints };
 }

@@ -32,12 +32,6 @@ ShellRoot {
     property string openSurface: ""
     property string peekMon: ""
 
-    Connections {
-        target: Quickshell
-        function onReloadCompleted() { Quickshell.inhibitReloadPopup(); }
-        function onReloadFailed(errorString) { Quickshell.inhibitReloadPopup(); }
-    }
-
     function refresh() {
         Hyprland.refreshMonitors();
         Hyprland.refreshWorkspaces();
@@ -123,6 +117,32 @@ ShellRoot {
         function link(mon: string): void { root.toggleSurface(mon, "link"); }
         function battery(mon: string): void { root.toggleSurface(mon, "battery"); }
         function settings(mon: string): void { root.toggleSurface(mon, "settings"); }
+        function recorder(mon: string): void { root.toggleSurface(mon, "recorder"); }
+        function screenrec(mon: string): void { root.toggleSurface(mon, "recorder"); }
+        function record(mon: string): void { root.toggleSurface(mon, "recorder"); }
+
+        /**
+         * Quick-record keybind (SUPER+D): one button cycles the whole flow with no
+         * surface. Recording → stop. Counting down → cancel. A chooser already up
+         * on this monitor → dismiss. Otherwise open the standalone source chooser on
+         * the focused monitor `mon`, so only that pill renders it.
+         */
+        function quickRecord(mon: string): void {
+            if (ScreenRec.recording) {
+                ScreenRec.stop();
+            } else if (ScreenRec.counting) {
+                ScreenRec.cancel();
+            } else if (ScreenRec.quickChoosing) {
+                ScreenRec.quickChoosing = false;
+                ScreenRec.quickScreenChoosing = false;
+            } else {
+                ScreenRec.quickMon = mon;
+                ScreenRec.quickScreenChoosing = false;
+                ScreenRec.quickChoosing = true;
+            }
+        }
+        function sysmon(mon: string): void { root.toggleSurface(mon, "sysmon"); }
+        function system(mon: string): void { root.toggleSurface(mon, "sysmon"); }
         function clipboard(mon: string): void { root.toggleSurface(mon, "clipboard"); }
         function wallpaper(mon: string): void { root.toggleSurface(mon, "wallpaper"); }
         function media(mon: string): void {
@@ -131,7 +151,7 @@ ShellRoot {
         }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.close(); }
-        function reload(): void { Quickshell.reload(false); }
+        function reload(): void { Quickshell.reload(true); }
     }
 
     Variants {
@@ -168,7 +188,7 @@ ShellRoot {
             readonly property real topGap: 8 * s
             readonly property string surface: root.openMon === modelData.name ? root.openSurface : ""
             readonly property bool surfaceOpen: surface.length > 0
-            readonly property bool modal: surfaceOpen || pill.held
+            readonly property bool modal: surfaceOpen || pill.held || pill.quickChoosing
 
             /**
              * True while this monitor's active workspace holds a real
@@ -199,7 +219,7 @@ ShellRoot {
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: surfaceOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+            WlrLayershell.keyboardFocus: (surfaceOpen || pill.quickChoosing) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
             WlrLayershell.namespace: "pill"
 
             anchors { top: true; left: true; right: true; bottom: true }
@@ -225,8 +245,12 @@ ShellRoot {
                 enabled: overlay.modal
                 acceptedButtons: Qt.AllButtons
                 onPressed: {
-                    if (overlay.surfaceOpen) root.close();
-                    else {
+                    if (pill.quickChoosing) {
+                        ScreenRec.quickChoosing = false;
+                        ScreenRec.quickScreenChoosing = false;
+                    } else if (overlay.surfaceOpen) {
+                        root.close();
+                    } else {
                         pill.pinned = false;
                         root.peekMon = "";
                     }
@@ -236,25 +260,66 @@ ShellRoot {
             FocusScope {
                 id: focusScope
                 anchors.fill: parent
-                focus: overlay.surfaceOpen
+                focus: overlay.surfaceOpen || pill.quickChoosing
 
                 HoverHandler {
                     onHoveredChanged: pill.hovered = hovered
                 }
-                Keys.onEscapePressed: if (!pill.linkBack()) root.close()
-                Keys.onUpPressed: (e) => { e.accepted = pill.mixerStep(1); }
-                Keys.onDownPressed: (e) => { e.accepted = pill.mixerStep(-1); }
+                Keys.onEscapePressed: {
+                    if (pill.quickChoosing) {
+                        ScreenRec.quickChoosing = false;
+                        ScreenRec.quickScreenChoosing = false;
+                    } else if (!pill.linkBack()) {
+                        root.close();
+                    }
+                }
+                Keys.onUpPressed: (e) => { e.accepted = pill.mixerStep(1) || pill.recorderStep(5) || pill.settingsMove(-1); }
+                Keys.onDownPressed: (e) => { e.accepted = pill.mixerStep(-1) || pill.recorderStep(-5) || pill.settingsMove(1); }
                 Keys.onLeftPressed: (e) => {
                     if (pill.mixerOpen) { pill.mixerFocusMove(-1); e.accepted = true; }
                     else if (pill.wallpaperOpen) { pill.wallpaperMove(-1); e.accepted = true; }
+                    else if (pill.powerOpen) { pill.powerMove(-1); e.accepted = true; }
+                    else if (pill.recorderOpen) { e.accepted = pill.recorderStep(-5); }
+                    else if (pill.settingsOpen) { pill.settingsAdjust(-1); e.accepted = true; }
                 }
                 Keys.onRightPressed: (e) => {
                     if (pill.mixerOpen) { pill.mixerFocusMove(1); e.accepted = true; }
                     else if (pill.wallpaperOpen) { pill.wallpaperMove(1); e.accepted = true; }
+                    else if (pill.powerOpen) { pill.powerMove(1); e.accepted = true; }
+                    else if (pill.recorderOpen) { e.accepted = pill.recorderStep(5); }
+                    else if (pill.settingsOpen) { pill.settingsAdjust(1); e.accepted = true; }
                 }
-                Keys.onReturnPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
-                Keys.onEnterPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
-                Keys.onSpacePressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
+
+                /**
+                 * Return/Enter/Space: the wallpaper strip applies its focused
+                 * thumb on every press; the power surface fires a safe tile on
+                 * the first press and, for a destructive tile, holds the heat
+                 * fill across autorepeat presses (drained on release). Autorepeat
+                 * is swallowed for everything else so a held key never re-fires.
+                 */
+                Keys.onPressed: (e) => {
+                    if (e.key !== Qt.Key_Return && e.key !== Qt.Key_Enter && e.key !== Qt.Key_Space)
+                        return;
+                    if (pill.wallpaperOpen) {
+                        if (!e.isAutoRepeat) pill.wallpaperActivate();
+                        e.accepted = true;
+                    } else if (pill.powerOpen) {
+                        if (!e.isAutoRepeat) pill.powerPress();
+                        e.accepted = true;
+                    } else if (pill.settingsOpen) {
+                        if (!e.isAutoRepeat) pill.settingsActivate();
+                        e.accepted = true;
+                    }
+                }
+                Keys.onReleased: (e) => {
+                    if (e.isAutoRepeat)
+                        return;
+                    if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter || e.key === Qt.Key_Space)
+                        && pill.powerOpen) {
+                        pill.powerRelease();
+                        e.accepted = true;
+                    }
+                }
 
                 Pill {
                     id: pill
@@ -292,6 +357,14 @@ ShellRoot {
             }
 
             onSurfaceOpenChanged: if (surfaceOpen) focusScope.forceActiveFocus()
+
+            Connections {
+                target: pill
+                function onQuickChoosingChanged() {
+                    if (pill.quickChoosing)
+                        focusScope.forceActiveFocus();
+                }
+            }
         }
     }
 }

@@ -492,7 +492,7 @@ Item {
                 const wy0 = by + root.wickDir * (r + 1.5 * S);
                 const wg = ctx.createLinearGradient(0, wy0, 0, wy0 + root.wickDir * wl);
                 wg.addColorStop(0, Qt.rgba(1, 0.851, 0.761, 0.55 * fadeIn));
-                wg.addColorStop(1, Qt.rgba(Theme.vermLit.r, Theme.vermLit.g, Theme.vermLit.b, 0));
+                wg.addColorStop(1, Qt.alpha(Theme.vermLit, 0));
                 ctx.beginPath();
                 ctx.moveTo(bx, wy0);
                 ctx.lineTo(bx, wy0 + root.wickDir * wl);
@@ -532,9 +532,9 @@ Item {
                 const sh = 18 * S * (settling ? (0.6 + 0.4 * e) : 1);
                 const sw = 4.2 * S;
                 const sg3 = ctx.createLinearGradient(0, by - sh / 2, 0, by + sh / 2);
-                sg3.addColorStop(0, Qt.rgba(Theme.vermLit.r, Theme.vermLit.g, Theme.vermLit.b, 0.92));
+                sg3.addColorStop(0, Qt.alpha(Theme.vermLit, 0.92));
                 sg3.addColorStop(0.5, Theme.flameInk);
-                sg3.addColorStop(1, Qt.rgba(Theme.vermLit.r, Theme.vermLit.g, Theme.vermLit.b, 0.92));
+                sg3.addColorStop(1, Qt.alpha(Theme.vermLit, 0.92));
                 ctx.beginPath();
                 ctx.roundedRect(bx - sw / 2, by - sh / 2, sw, sh, sw / 2, sw / 2);
                 ctx.fillStyle = sg3;

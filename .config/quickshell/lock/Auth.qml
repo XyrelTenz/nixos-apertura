@@ -23,7 +23,7 @@ Item {
 
     PamContext {
         id: pam
-        config: "quickshell"
+        config: "login"
         user: auth.user
 
         onResponseRequiredChanged: {

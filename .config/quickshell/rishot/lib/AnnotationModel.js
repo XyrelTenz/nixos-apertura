@@ -1,5 +1,14 @@
+var UNDO_LIMIT = 100;
+
+function cloneItem(a) {
+    var c = {};
+    for (var k in a) c[k] = a[k];
+    c.points = a.points.map(function (p) { return { x: p.x, y: p.y }; });
+    return c;
+}
+
 function clone(items) {
-    return JSON.parse(JSON.stringify(items));
+    return items.map(cloneItem);
 }
 
 function create() {
@@ -10,6 +19,7 @@ function create() {
 
         commit: function () {
             this.undoStack.push(clone(this.items));
+            if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
             this.redoStack = [];
         },
 

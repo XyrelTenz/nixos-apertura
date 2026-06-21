@@ -96,11 +96,11 @@ PillSurface {
 
     SearchField {
         id: search
+        z: 5
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         s: root.s
-        icon: "clipboard"
         kanji: "控"
         placeholder: "Search clipboard"
         counterText: root.results.length + " / " + Cliphist.count
@@ -128,13 +128,20 @@ PillSurface {
             readonly property real hold: wipeHeat.hold
             readonly property bool holding: wipeHeat.holding
 
-            GlyphIcon {
+            Tooltip {
+                s: root.s
+                placement: "below"
+                title: "hold to wipe"
+                show: wipeArea.containsMouse || wipeBtn.holding
+            }
+
+            Text {
                 anchors.centerIn: parent
-                width: 14 * root.s
-                height: 14 * root.s
-                name: "trash"
+                text: "掃"
                 color: wipeBtn.holding ? Theme.vermLit : (wipeArea.containsMouse ? Theme.cream : Theme.faint)
-                stroke: 1.7
+                font.family: Theme.fontJp
+                font.pixelSize: 12 * root.s
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
             }
 
             HeatHold {

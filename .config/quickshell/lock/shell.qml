@@ -6,23 +6,10 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "Singletons"
 
-/*TODO:
- * /home/xyreltenz/Ricelin
- * observe this folder i clone and what's wrong is my implementation why my lockscreen not working when i type. Also check the latest change on
- * it for battery and apply the changes to my config and remove not used folder like topbar. Change the pill time format into 12am-12pm instead
- * of 24 hour format. Also when i click sidebar icon on pill nothing happen.
- */
-
 ShellRoot {
     id: root
 
     readonly property string currentUser: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
-
-    Connections {
-        target: Quickshell
-        function onReloadCompleted() { Quickshell.inhibitReloadPopup(); }
-        function onReloadFailed(errorString) { Quickshell.inhibitReloadPopup(); }
-    }
 
     Auth {
         id: pamAuth
@@ -33,6 +20,7 @@ ShellRoot {
             Pw.text = "";
         }
     }
+
 
     WlSessionLock {
         id: sessionLock
@@ -58,6 +46,6 @@ ShellRoot {
             sessionLock.locked = true;
             Cava.enabled = true;
         }
-        function reload(): void { Quickshell.reload(false); }
+        function reload(): void { Quickshell.reload(true); }
     }
 }
