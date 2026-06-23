@@ -87,4 +87,4 @@ Cargo.lock
 .config/quickshell/topbar/Singletons/Theme.qml
 .config/quickshell/lock/Singletons/Theme.qml
 .config/quickshell/sidebar/Singletons/Theme.qml
-.config/starship.toml
+
