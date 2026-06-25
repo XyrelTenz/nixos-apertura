@@ -2,7 +2,7 @@
 MAGICK_CONFIGURE_PATH="$(dirname "$0")/magick-policy"
 export MAGICK_CONFIGURE_PATH
 
-wpdir="$HOME/Ricelin/wallpapers"
+wpdir="$HOME/Pictures/Wallpapers"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/ricelin-wp-thumbs"
 mkdir -p "$cache"
 

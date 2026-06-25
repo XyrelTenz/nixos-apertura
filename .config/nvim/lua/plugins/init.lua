@@ -18,15 +18,18 @@ return {
 		"nvim-tree/nvim-tree.lua",
 		opts = {
 			sync_root_with_cwd = true,
-			respect_buf_cwd = true,
+			respect_buf_cwd = false,
 			update_focused_file = {
 				enable = true,
-				update_root = true,
+				update_root = false,
 			},
 			prefer_startup_root = true,
 			filters = {
 				custom = { "node_modules", "target", "build", "dist", "out" },
 				dotfiles = false,
+			},
+			git = {
+				ignore = false,
 			},
 			on_attach = function(bufnr)
 				local api = require("nvim-tree.api")
@@ -103,7 +106,8 @@ return {
 		config = function()
 			require("project_nvim").setup({
 				detection_methods = { "lsp", "pattern" },
-				patterns = { ".git", "package.json", "build.gradle.kts", "module.yaml" },
+				patterns = { ".git", "melos.yaml" },
+				ignore_lsp = { "rust_analyzer" },
 			})
 		end,
 	},

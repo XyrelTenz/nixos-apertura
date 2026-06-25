@@ -42,6 +42,8 @@ in {
     rustup
     just
     bun
+    flutter
+    gradle
 
     clang-tools
     typescript

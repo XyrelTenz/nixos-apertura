@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WPDIR="$HOME/Ricelin/wallpapers"
+WPDIR="$HOME/Pictures/Wallpapers"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/ricelin-wallpaper"
 BAG="${XDG_STATE_HOME:-$HOME/.local/state}/ricelin-wallpaper-bag"
 

@@ -4,6 +4,7 @@ vim.g.user = os.getenv("USERNAME") or os.getenv("USER")
 
 local opt = vim.opt
 
+-- Set shell to PowerShell 7 if on Win32 or Win64
 local function set_system_shell()
 	if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
 		opt.shell = "powershell -NoLogo"
@@ -29,6 +30,7 @@ end
 
 set_system_shell()
 
+-- UI/General
 opt.number = true
 opt.relativenumber = false
 opt.ignorecase = true
@@ -50,6 +52,21 @@ opt.fillchars:append({ vert = " " })
 
 vim.g.copilot_no_tab_map = true
 
+-- -- Set statusline
+-- opt.laststatus = 0
+-- -- opt.statusline = require("core.statusline").statusline
+-- -- opt.tabline = require("core.statusline").statusline
+--
+-- -- Set tab width
+-- opt.tabstop = 4
+-- opt.shiftwidth = 4
+-- opt.expandtab = true
+-- opt.autoindent = true
+-- opt.breakindent = true
+-- opt.breakindentopt = "shift:2"
+-- opt.showbreak = "↳"
+--
+-- Make cursor blink
 opt.guicursor = {
 	"n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50",
 	"a:blinkwait700-blinkoff400-blinkon250-Cursor/lCursor",

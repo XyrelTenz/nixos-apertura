@@ -36,7 +36,7 @@ download() {
     url="${1:-}"
     [ -n "$url" ] || exit 1
 
-    dir="$HOME/Ricelin/wallpapers/downloads"
+    dir="$HOME/Pictures/Wallpapers/downloads"
     mkdir -p "$dir"
 
     tmp=$(mktemp "${TMPDIR:-/tmp}/ddg-wp.XXXXXX")

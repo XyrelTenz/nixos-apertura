@@ -5,7 +5,10 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  nixpkgs.config.allowUnfree = true;
+  nixpkgs.config = {
+    allowUnfree = true;
+    android_sdk.accept_license = true;
+  };
 
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
@@ -16,6 +19,23 @@
 
   programs.fish.enable = true;
   programs.zoxide.enable = true;
+  programs.vscode.extensions = with pkgs.vscode-extensions; [
+    ms-python.python
+    ms-python.vscode-pylance
+    ms-vscode.cpptools
+    ms-vscode.cpptools-extension-pack
+    rust-lang.rust-analyzer
+    vadimcn.vscode-lldb
+    bungcip.better-toml
+    esbenp.prettier-vscode
+    dbaeumer.vscode-eslint
+    eamodio.gitlens
+  ];
+
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
 
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [

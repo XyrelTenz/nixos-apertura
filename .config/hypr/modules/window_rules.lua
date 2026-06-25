@@ -62,19 +62,9 @@ hl.window_rule({
 })
 
 hl.window_rule({
-    name      = "hide-emulator-sidebar",
-    match     = {
-        class = "Emulator",
-        title = "^Emulator$",
-    },
-    workspace = "special:minimized",
-})
-
-hl.window_rule({
     name   = "float-emulator",
     match  = {
         class = "Emulator",
-        title = "Android Emulator.*",
     },
     float  = true,
     size   = { 430, 900 },
