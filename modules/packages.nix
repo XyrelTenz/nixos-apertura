@@ -44,6 +44,7 @@ in {
     bun
     flutter
     gradle
+    docker-compose
 
 
     clang-tools
