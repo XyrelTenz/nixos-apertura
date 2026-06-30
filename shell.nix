@@ -47,8 +47,8 @@ localPkgs.mkShell {
     export ANDROID_SDK_ROOT="$ANDROID_HOME"
     export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
     
-    # Expose graphic drivers for Wayland/XCB rendering verification
-    export LD_LIBRARY_PATH="/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH"
+    # Expose graphic drivers and openssl for Wayland/XCB rendering verification
+    export LD_LIBRARY_PATH="${localPkgs.openssl.out}/lib:/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH"
 
     echo "⚡ Flutter & Android SDK development environment loaded! ⚡"
   '';
