@@ -38,6 +38,8 @@ if status is-interactive
     set -x ANDROID_SDK_ROOT ~/Android/Sdk
     set -x ANDROID_AVD_HOME ~/.config/.android/avd
 
+    set -x DIRENV_LOG_FORMAT ""
+
     set -x EDITOR nvim
     set -x VISUAL nvim
 end
